@@ -30,22 +30,65 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       {
         name: 'title',
         selector: { text: {} },
-        label: localize(this.hass, 'component.tankerkoenig-card.editor.title'),
       },
       {
         name: 'stations',
         selector: {
-          entity: {
-            domain: 'sensor',
+          device: {
             multiple: true,
+            integration: 'tankerkoenig',
           },
         },
-        label: localize(this.hass, 'component.tankerkoenig-card.editor.stations'),
       },
       {
         name: 'show_address',
         selector: { boolean: {} },
-        label: localize(this.hass, 'component.tankerkoenig-card.editor.show_address'),
+      },
+      {
+        name: 'show_last_updated',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'show_price_changes',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'fuel_types',
+        selector: {
+          select: {
+            multiple: true,
+            mode: 'list',
+            options: [
+              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
+              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
+              {
+                value: 'diesel',
+                label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.diesel'),
+              },
+            ],
+          },
+        },
+      },
+      {
+        name: 'hide_unavailable_stations',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'sort_by',
+        selector: {
+          select: {
+            mode: 'dropdown',
+            options: [
+              { value: 'none', label: localize(this.hass, 'component.tankerkoenig-card.editor.sort_by_options.none') },
+              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
+              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
+              {
+                value: 'diesel',
+                label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.diesel'),
+              },
+            ],
+          },
+        },
       },
     ];
 
@@ -58,6 +101,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
               .hass=${this.hass}
               .data=${this._config}
               .schema=${schema}
+              .computeLabel=${(s: { name: string }) =>
+                localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
               @value-changed=${this._valueChanged}
             ></ha-form>
           </div>

@@ -1,11 +1,20 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property, state, query } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, TankerkoenigCardConfig } from './types.js';
+import { classMap } from 'lit/directives/class-map.js';
 import { localize } from './localize';
+import { fireEvent, formatDate } from './utils';
 import styles from './styles/card.styles.scss';
 
 export interface LovelaceHelpers {
   createCardElement(config: { type: string; [key: string]: unknown }): LovelaceCard;
+}
+
+interface Station {
+  e5?: string;
+  e10?: string;
+  diesel?: string;
+  status?: string;
 }
 
 type LovelaceCardConstructor = new () => LovelaceCard;
@@ -29,7 +38,10 @@ declare global {
 @customElement(ELEMENT_NAME)
 export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @property({ attribute: false }) public hass!: HomeAssistant;
+  @query('ha-card') private _card!: LovelaceCard;
   @state() private _config!: TankerkoenigCardConfig;
+  @state() private _oldHass: HomeAssistant | undefined;
+  @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
 
   public setConfig(config: TankerkoenigCardConfig): void {
     if (!config || !config.stations || !Array.isArray(config.stations) || config.stations.length === 0) {
@@ -57,12 +69,47 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   public static getStubConfig(): Record<string, unknown> {
     return {
       title: 'Tankerkönig',
-      stations: ['sensor.tankerkoenig_aral_super_e5', 'sensor.tankerkoenig_aral_super_e10'],
+      stations: [],
     };
   }
 
   public getCardSize(): number {
     return 3;
+  }
+
+  private _getStations(hass: HomeAssistant, config: TankerkoenigCardConfig): Record<string, Station> {
+    const stations: Record<string, Station> = {};
+
+    const allEntities = Object.values(hass.states);
+
+    config.stations.forEach((station) => {
+      const deviceEntities = allEntities.filter(
+        (entity) =>
+          hass.entities[entity.entity_id]?.device_id === station &&
+          (entity.entity_id.startsWith('sensor.') || entity.entity_id.startsWith('binary_sensor.')),
+      );
+
+      if (deviceEntities.length === 0) {
+        return;
+      }
+
+      // Use the device_id as the unique key for the station.
+      if (!stations[station]) {
+        stations[station] = {};
+      }
+
+      deviceEntities.forEach((entity) => {
+        const fuelType = entity.attributes.fuel_type;
+        if (fuelType === 'e5') stations[station].e5 = entity.entity_id;
+        if (fuelType === 'e10') stations[station].e10 = entity.entity_id;
+        if (fuelType === 'diesel') stations[station].diesel = entity.entity_id;
+        if (entity.entity_id.endsWith('_status')) {
+          stations[station].status = entity.entity_id;
+        }
+      });
+    });
+
+    return stations;
   }
 
   protected shouldUpdate(changedProperties: Map<string | number | symbol, unknown>): boolean {
@@ -71,18 +118,79 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
 
     const oldHass = changedProperties.get('hass') as HomeAssistant | undefined;
-
-    // Check if the entity that this card uses has changed, or if the language has changed.
     if (oldHass) {
-      const hasChanged = this._config.stations.some((entity) => oldHass.states[entity] !== this.hass.states[entity]);
-
+      const stations = this._getStations(this.hass, this._config);
+      const entities = Object.values(stations).flatMap((s) => Object.values(s));
+      const hasChanged = entities.some((entity) => entity && oldHass.states[entity] !== this.hass.states[entity]);
       if (hasChanged || oldHass.language !== this.hass.language) {
+        this._fetchPriceChanges();
         return true;
       }
-      return false; // All other hass changes are ignored
+      this._oldHass = oldHass;
     }
 
     return true; // First render
+  }
+
+  private _handleMoreInfo(entityId: string): void {
+    fireEvent(this, 'hass-more-info', { entityId });
+  }
+
+  private async _fetchPriceChanges(): Promise<void> {
+    if (!this._config.show_price_changes) return;
+
+    const stations = this._getStations(this.hass, this._config);
+    const priceEntities = Object.values(stations)
+      .flatMap((s) => [s.e5, s.e10, s.diesel])
+      .filter((id): id is string => !!id);
+
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+    const history = await this.hass.callWS<Record<string, { s: string; lu: number }[]>>({
+      type: 'history/history_during_period',
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      entity_ids: priceEntities,
+      minimal_response: true,
+      no_attributes: true,
+      significant_changes_only: false,
+    });
+
+    console.log('Tankerkoenig-Card: History response', history);
+
+    const newPriceChanges: Record<string, 'up' | 'down'> = {};
+    for (const entityId of priceEntities) {
+      // Filter out null, 'unknown', or 'unavailable' states from history.
+      const entityHistory = history[entityId];
+      const validHistory = Array.isArray(entityHistory)
+        ? entityHistory.filter((entry) => entry && entry.s !== null && entry.s !== 'unknown' && !isNaN(parseFloat(entry.s)))
+        : [];
+
+      if (validHistory && validHistory.length > 1) {
+        // The history is returned in chronological order. The last item is the most recent.
+        const lastStateStr = validHistory[validHistory.length - 1].s;
+        const previousStateStr = validHistory[validHistory.length - 2].s;
+
+        const lastState = parseFloat(lastStateStr);
+        const previousState = parseFloat(previousStateStr);
+
+        console.log(
+          `Tankerkoenig-Card: [${entityId}] Comparing prices - Last: ${lastState} (from '${lastStateStr}'), Previous: ${previousState} (from '${previousStateStr}')`,
+        );
+
+        if (!isNaN(lastState) && !isNaN(previousState)) {
+          if (lastState > previousState) newPriceChanges[entityId] = 'up';
+          else if (lastState < previousState) newPriceChanges[entityId] = 'down';
+        }
+      } else {
+        console.log(
+          `Tankerkoenig-Card: [${entityId}] Not enough valid history to compare prices. Found ${validHistory.length} states.`,
+        );
+      }
+    }
+    this._priceChanges = newPriceChanges;
+    console.log('Tankerkoenig-Card: Calculated price changes', this._priceChanges);
   }
 
   protected render(): TemplateResult {
@@ -90,18 +198,57 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       return html``;
     }
 
+    const fuelTypesToRender = this._config.fuel_types || ['e5', 'e10', 'diesel'];
+    const fuelTypeMap = {
+      e5: { label: 'E5' },
+      e10: { label: 'E10' },
+      diesel: { label: 'Diesel' },
+    };
+
+    const sortBy = this._config.sort_by;
+    let stationEntries = Object.entries(this._getStations(this.hass, this._config));
+
+    if (this._config.hide_unavailable_stations) {
+      stationEntries = stationEntries.filter(
+        ([, station]) => !station.status || this.hass.states[station.status].state === 'on',
+      );
+    }
+
+    if (sortBy && sortBy !== 'none') {
+      stationEntries.sort(([, stationA], [, stationB]) => {
+        const entityA = stationA[sortBy as keyof Station];
+        const entityB = stationB[sortBy as keyof Station];
+
+        if (!entityA) return 1;
+        if (!entityB) return -1;
+
+        const priceA = parseFloat(this.hass.states[entityA].state);
+        const priceB = parseFloat(this.hass.states[entityB].state);
+
+        if (isNaN(priceA)) return 1;
+        if (isNaN(priceB)) return -1;
+
+        return priceA - priceB;
+      });
+    }
+
     return html`
-      <ha-card .header=${this._config.title}>
+      <ha-card .header=${this._config.title} tabindex="0">
         <div class="card-content">
-          ${this._config.stations.map((entity) => {
-            const stateObj = this.hass.states[entity];
-            if (!stateObj) {
+          ${stationEntries.map(([stationId, station]) => {
+            const primaryEntity = station.e5 || station.e10 || station.diesel || station.status;
+            if (!primaryEntity) {
               return html`
                 <div class="warning">
-                  ${localize(this.hass, 'component.tankerkoenig-card.card.entity_not_found', { entity: entity })}
+                  ${localize(this.hass, 'component.tankerkoenig-card.card.station_not_found', {
+                    station: stationId,
+                  })}
                 </div>
               `;
             }
+
+            const isOpen = station.status ? this.hass.states[station.status].state === 'on' : false;
+            const stateObj = this.hass.states[primaryEntity];
             const attributes = stateObj.attributes;
             const stationName = attributes.station_name || attributes.friendly_name;
             const address = `${attributes.street || ''} ${attributes.house_number || ''}, ${
@@ -109,25 +256,70 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             } ${attributes.city || ''}`;
 
             return html`
-              <div class="station ${attributes.is_open ? 'open' : 'closed'}">
+              <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
                 <div class="logo-container">
                   <img
                     class="logo"
-                    src="https://raw.githubusercontent.com/home-assistant/brands/master/custom_integrations/tankerkoenig/logo.png"
+                    src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/${(
+                      attributes.brand as string
+                    )
+                      ?.toLowerCase()
+                      .replace(/ /g, '-')}.png"
                     alt="${attributes.brand}"
+                    @error=${(e: Event) =>
+                      ((e.target as HTMLImageElement).src =
+                        'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/404.png')}
                   />
                 </div>
                 <div class="info">
                   <div class="row-1">
                     <span class="station-name">${stationName}</span>
-                    <span class="fuel-type">${attributes.fuel_type}</span>
                   </div>
                   ${this._config.show_address
                     ? html`<div class="row-2"><span class="address">${address}</span></div>`
                     : ''}
+                  ${this._config.show_last_updated
+                    ? html`<div class="row-3">
+                        <span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>
+                      </div>`
+                    : ''}
                 </div>
-                <div class="price-container">
-                  <span class="price">${stateObj.state}</span><span class="unit">€</span>
+                <div class="prices">
+                  ${fuelTypesToRender.map((fuel) => {
+                    const entityId = station[fuel as keyof Station];
+                    if (!entityId) return '';
+
+                    const stateObj = this.hass.states[entityId];
+                    const isUnavailable = stateObj.state === 'unavailable' || isNaN(parseFloat(stateObj.state));
+
+                    let mainPrice = '-.--';
+                    let superPrice = '-';
+                    const currency = stateObj.attributes.unit_of_measurement || '';
+
+                    if (!isUnavailable) {
+                      const priceParts = stateObj.state.split('.');
+                      mainPrice = `${priceParts[0]}.${priceParts[1].substring(0, 2)}`;
+                      superPrice = priceParts[1].substring(2, 3);
+                    }
+
+                    const priceChangeIndicator =
+                      this._config.show_price_changes && !isUnavailable
+                        ? this._priceChanges[entityId] || ''
+                        : '';
+
+                    return html`<div class="price-container" @click=${() => this._handleMoreInfo(entityId)} tabindex="0">
+                      <div class="fuel-header">
+                        <span class="fuel-type">${fuelTypeMap[fuel as keyof typeof fuelTypeMap].label}</span>
+                        <span
+                          class="price-change-indicator ${classMap({
+                            'price-up': priceChangeIndicator === 'up',
+                            'price-down': priceChangeIndicator === 'down',
+                          })}"
+                        ></span>
+                      </div>
+                      <span class="price">${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span>
+                    </div>`;
+                  })}
                 </div>
               </div>
             `;
@@ -137,11 +329,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     `;
   }
 
-  static styles = [
-    css`
-      ${unsafeCSS(styles)}
-    `,
-  ];
+  protected firstUpdated(): void {
+    this._fetchPriceChanges();
+  }
+
+  static styles = css`
+    ${unsafeCSS(styles)}
+  `;
 }
 
 if (typeof window !== 'undefined') {

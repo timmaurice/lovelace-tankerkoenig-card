@@ -1,8 +1,8 @@
-.card-content {
-  padding: 16px;
+:host ::slotted(.card-content),.card-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 16px;
 }
 
 .warning {
@@ -10,22 +10,23 @@
 }
 
 .station {
-  display: flex;
   align-items: center;
+  display: flex;
   gap: 12px;
 
   &.closed {
-    opacity: 0.5;
     filter: grayscale(1);
+    opacity: 0.5;
   }
 }
 
 .logo-container {
   flex-shrink: 0;
+
   .logo {
-    width: 40px;
     height: 40px;
     object-fit: contain;
+    width: 40px;
   }
 }
 
@@ -33,7 +34,67 @@
   flex-grow: 1;
 }
 
-.price-container {
-  font-size: 1.5em;
+.station-name {
   font-weight: bold;
+}
+
+.prices {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: flex-end;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.price-container {
+  background-color: #000;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+}
+
+.price {
+  font-family:
+    'Digital-7', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 1.5em;
+  line-height: 1;
+  text-shadow: 0 0 2px #fff;
+}
+
+.fuel-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.price sup {
+  font-size: 0.6em;
+}
+
+.currency {
+  font-size: 0.7em;
+  font-weight: normal;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+.price-change-indicator {
+  font-size: 1em;
+  margin: 0 4px;
+  vertical-align: middle;
+}
+
+.price-change-indicator.price-up::after {
+  content: '▲';
+  color: var(--error-color);
+}
+
+.price-change-indicator.price-down::after {
+  content: '▼';
+  color: var(--success-color);
 }

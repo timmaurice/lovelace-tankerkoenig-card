@@ -5,9 +5,21 @@
     },
     "title": "Title (Optional)",
     "stations": "Station Entities",
-    "show_address": "Show Station Address"
+    "show_address": "Show Station Address",
+    "show_last_updated": "Show Last Updated Timestamp",
+    "fuel_types": "Fuel Types Order",
+    "hide_unavailable_stations": "Hide Unavailable Stations",
+    "sort_by": "Sort Stations by Price",
+    "fuel_type_options": {
+      "e5": "Super E5",
+      "e10": "Super E10",
+      "diesel": "Diesel"
+    },
+    "sort_by_options": {
+      "none": "None"
+    }
   },
   "card": {
-    "entity_not_found": "Entity not found: {entity}"
+    "station_not_found": "Station not found: {station}"
   }
 }

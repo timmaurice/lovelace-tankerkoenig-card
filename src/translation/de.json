@@ -1,4 +1,25 @@
 {
-  "editor": {},
-  "card": {}
+  "editor": {
+    "groups": {
+      "core": "Grundeinstellungen"
+    },
+    "title": "Titel (Optional)",
+    "stations": "Tankstellen",
+    "show_address": "Adresse anzeigen",
+    "show_last_updated": "Zeitstempel der letzten Aktualisierung anzeigen",
+    "fuel_types": "Reihenfolge der Kraftstoffarten",
+    "hide_unavailable_stations": "Nicht verfügbare Tankstellen ausblenden",
+    "sort_by": "Tankstellen nach Preis sortieren",
+    "fuel_type_options": {
+      "e5": "Super E5",
+      "e10": "Super E10",
+      "diesel": "Diesel"
+    },
+    "sort_by_options": {
+      "none": "Keine"
+    }
+  },
+  "card": {
+    "station_not_found": "Tankstelle nicht gefunden: {station}"
+  }
 }

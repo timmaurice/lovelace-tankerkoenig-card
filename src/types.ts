@@ -29,11 +29,15 @@ export interface HassEntity {
     unit_of_measurement?: string;
     [key: string]: unknown;
   };
+  last_changed: string;
+  last_updated: string;
 }
 
 export interface HassEntityRegistryDisplayEntry {
   entity_id: string;
   display_precision?: number;
+  device_id?: string;
+  domain?: string;
 }
 
 // A basic representation of a Lovelace card
@@ -59,4 +63,8 @@ export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   title?: string;
   stations: string[];
   show_address?: boolean;
+  show_last_updated?: boolean;
+  fuel_types?: ('e5' | 'e10' | 'diesel')[];
+  sort_by?: 'e5' | 'e10' | 'diesel' | 'none';
+  hide_unavailable_fuel?: boolean;
 }
