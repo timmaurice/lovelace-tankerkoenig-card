@@ -1,0 +1,38 @@
+.card-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group {
+  border: 1px solid var(--divider-color);
+  border-radius: var(--ha-card-border-radius, 4px);
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.group-header {
+  color: var(--primary-text-color);
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+
+  & > * {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+}
+
+ha-formfield {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}

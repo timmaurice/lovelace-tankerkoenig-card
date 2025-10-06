@@ -1,0 +1,39 @@
+.card-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.warning {
+  color: var(--error-color);
+}
+
+.station {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &.closed {
+    opacity: 0.5;
+    filter: grayscale(1);
+  }
+}
+
+.logo-container {
+  flex-shrink: 0;
+  .logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+}
+
+.info {
+  flex-grow: 1;
+}
+
+.price-container {
+  font-size: 1.5em;
+  font-weight: bold;
+}

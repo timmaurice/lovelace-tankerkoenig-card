@@ -1,0 +1,13 @@
+{
+  "editor": {
+    "groups": {
+      "core": "Core Configuration"
+    },
+    "title": "Title (Optional)",
+    "stations": "Station Entities",
+    "show_address": "Show Station Address"
+  },
+  "card": {
+    "entity_not_found": "Entity not found: {entity}"
+  }
+}
