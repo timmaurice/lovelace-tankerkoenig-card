@@ -1,4 +1,13 @@
 {
-  "cSpell.words": ["dimgray", "HACS", "hacsfiles", "hass", "Tankerkönig"],
+  "cSpell.words": [
+    "Agip",
+    "Avia",
+    "dimgray",
+    "Esso",
+    "HACS",
+    "hacsfiles",
+    "hass",
+    "Tankerkönig"
+  ],
   "cSpell.ignorePaths": [".github/**", "node_modules/**", "dist/**"]
 }

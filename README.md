@@ -68,12 +68,19 @@ The card automatically displays logos for many gas station brands. The logo is d
 
 Some of the supported brands include:
 
+- Agip eni
 - Aral
+- Avia
 - Bell Oil
 - BFT
+- Esso
+- HEM
 - Jet
+- MOL
+- OMV
 - Shell
 - Star
+- Total Energies
 
 If a logo for a specific brand is missing, the card will show a generic fallback logo. You can check the `src/gasstation_logos` directory for a full list of available logos.
 
