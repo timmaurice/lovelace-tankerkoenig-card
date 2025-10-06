@@ -1,4 +1,5 @@
-:host ::slotted(.card-content),.card-content {
+:host ::slotted(.card-content),
+.card-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -48,9 +49,9 @@
 }
 
 .price-container {
-  background-color: #000;
+  background-color: var(--divider-color);
   border-radius: 4px;
-  color: #fff;
+  color: var(--primary-text-color);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -63,12 +64,12 @@
     monospace;
   font-size: 1.5em;
   line-height: 1;
-  text-shadow: 0 0 2px #fff;
+  text-shadow: none;
 }
 
 .fuel-header {
-  display: flex;
   align-items: center;
+  display: flex;
   justify-content: center;
 }
 
@@ -90,11 +91,11 @@
 }
 
 .price-change-indicator.price-up::after {
-  content: '▲';
   color: var(--error-color);
+  content: '▲';
 }
 
 .price-change-indicator.price-down::after {
-  content: '▼';
   color: var(--success-color);
+  content: '▼';
 }

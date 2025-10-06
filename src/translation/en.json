@@ -7,6 +7,7 @@
     "stations": "Station Entities",
     "show_address": "Show Station Address",
     "show_last_updated": "Show Last Updated Timestamp",
+    "show_price_changes": "Show Price Changes",
     "fuel_types": "Fuel Types Order",
     "hide_unavailable_stations": "Hide Unavailable Stations",
     "sort_by": "Sort Stations by Price",

@@ -137,7 +137,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   }
 
   private async _fetchPriceChanges(): Promise<void> {
-    if (!this._config.show_price_changes) return;
+    if (!this._config || !this._config.show_price_changes) return;
 
     const stations = this._getStations(this.hass, this._config);
     const priceEntities = Object.values(stations)
@@ -146,6 +146,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+    if (priceEntities.length === 0) return;
 
     const history = await this.hass.callWS<Record<string, { s: string; lu: number }[]>>({
       type: 'history/history_during_period',
@@ -157,14 +159,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       significant_changes_only: false,
     });
 
-    console.log('Tankerkoenig-Card: History response', history);
-
     const newPriceChanges: Record<string, 'up' | 'down'> = {};
     for (const entityId of priceEntities) {
       // Filter out null, 'unknown', or 'unavailable' states from history.
       const entityHistory = history[entityId];
       const validHistory = Array.isArray(entityHistory)
-        ? entityHistory.filter((entry) => entry && entry.s !== null && entry.s !== 'unknown' && !isNaN(parseFloat(entry.s)))
+        ? entityHistory.filter(
+            (entry) => entry && entry.s !== null && entry.s !== 'unknown' && !isNaN(parseFloat(entry.s)),
+          )
         : [];
 
       if (validHistory && validHistory.length > 1) {
@@ -175,22 +177,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         const lastState = parseFloat(lastStateStr);
         const previousState = parseFloat(previousStateStr);
 
-        console.log(
-          `Tankerkoenig-Card: [${entityId}] Comparing prices - Last: ${lastState} (from '${lastStateStr}'), Previous: ${previousState} (from '${previousStateStr}')`,
-        );
-
         if (!isNaN(lastState) && !isNaN(previousState)) {
           if (lastState > previousState) newPriceChanges[entityId] = 'up';
           else if (lastState < previousState) newPriceChanges[entityId] = 'down';
         }
-      } else {
-        console.log(
-          `Tankerkoenig-Card: [${entityId}] Not enough valid history to compare prices. Found ${validHistory.length} states.`,
-        );
       }
     }
     this._priceChanges = newPriceChanges;
-    console.log('Tankerkoenig-Card: Calculated price changes', this._priceChanges);
   }
 
   protected render(): TemplateResult {
@@ -198,7 +191,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       return html``;
     }
 
-    const fuelTypesToRender = this._config.fuel_types || ['e5', 'e10', 'diesel'];
+    const fuelTypesToRender = this._config.fuel_types || ['diesel', 'e10', 'e5'];
     const fuelTypeMap = {
       e5: { label: 'E5' },
       e10: { label: 'E10' },
@@ -303,11 +296,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     }
 
                     const priceChangeIndicator =
-                      this._config.show_price_changes && !isUnavailable
-                        ? this._priceChanges[entityId] || ''
-                        : '';
+                      this._config.show_price_changes && !isUnavailable ? this._priceChanges[entityId] || '' : '';
 
-                    return html`<div class="price-container" @click=${() => this._handleMoreInfo(entityId)} tabindex="0">
+                    return html`<div
+                      class="price-container"
+                      @click=${() => this._handleMoreInfo(entityId)}
+                      tabindex="0"
+                    >
                       <div class="fuel-header">
                         <span class="fuel-type">${fuelTypeMap[fuel as keyof typeof fuelTypeMap].label}</span>
                         <span
@@ -317,7 +312,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                           })}"
                         ></span>
                       </div>
-                      <span class="price">${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span>
+                      <span class="price"
+                        >${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span
+                      >
                     </div>`;
                   })}
                 </div>

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
 import type { TankerkoenigCard } from '../src/tankerkoenig-card';
@@ -11,6 +11,67 @@ vi.spyOn(console, 'info').mockImplementation(() => undefined);
 interface HaCard extends HTMLElement {
   header?: string;
 }
+
+/**
+ * Creates a mock station with entities and states.
+ * @param id - A unique identifier for the station (e.g., 'aral').
+ * @param name - The friendly name of the station.
+ * @param brand - The brand of the station.
+ * @param prices - An object with fuel prices.
+ * @param status - The status of the station ('on' or 'off').
+ * @returns An object containing entities and states for the mock station.
+ */
+const createMockStation = (
+  id: string,
+  name: string,
+  brand: string,
+  prices: { e5?: string; e10?: string; diesel?: string },
+  status: 'on' | 'off' = 'on',
+) => {
+  const device_id = `device-${id}`;
+  const states: HomeAssistant['states'] = {};
+  const entities: HomeAssistant['entities'] = {};
+
+  const commonAttributes = {
+    station_name: name,
+    brand,
+    street: 'Musterstraße',
+    house_number: '1',
+    post_code: 12345,
+    city: 'Musterstadt',
+  };
+
+  for (const fuel of ['e5', 'e10', 'diesel'] as const) {
+    if (prices[fuel]) {
+      const entity_id = `sensor.${id}_${fuel}`;
+      entities[entity_id] = { entity_id, device_id };
+      states[entity_id] = {
+        entity_id,
+        state: prices[fuel] as string,
+        attributes: {
+          ...commonAttributes,
+          friendly_name: `${name} ${fuel.toUpperCase()}`,
+          fuel_type: fuel,
+          unit_of_measurement: '€',
+        },
+        last_changed: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+      };
+    }
+  }
+
+  const status_entity_id = `binary_sensor.${id}_status`;
+  entities[status_entity_id] = { entity_id: status_entity_id, device_id };
+  states[status_entity_id] = {
+    entity_id: status_entity_id,
+    state: status,
+    attributes: { ...commonAttributes, friendly_name: `${name} Status` },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  };
+
+  return { entities, states, device_id };
+};
 
 describe('TankerkoenigCard', () => {
   let element: TankerkoenigCard;
@@ -29,11 +90,12 @@ describe('TankerkoenigCard', () => {
       },
       states: {},
       entities: {},
+      callWS: vi.fn(),
     } as HomeAssistant;
 
     config = {
       type: 'custom:tankerkoenig-card',
-      stations: ['test-device-id'],
+      stations: [],
     };
 
     element = document.createElement('tankerkoenig-card') as TankerkoenigCard;
@@ -56,8 +118,13 @@ describe('TankerkoenigCard', () => {
   });
 
   it('should render a title if provided', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+    config.stations = [station.device_id];
+    config.title = 'Fuel Prices';
+    hass.entities = station.entities;
+    hass.states = station.states;
     element.hass = hass;
-    element.setConfig({ ...config, title: 'Fuel Prices' });
+    element.setConfig(config);
     await element.updateComplete;
 
     const card = element.shadowRoot?.querySelector<HaCard>('ha-card');
@@ -65,62 +132,14 @@ describe('TankerkoenigCard', () => {
   });
 
   it('should render station details correctly', async () => {
-    const commonAttributes = {
-      station_name: 'ARAL Tankstelle',
-      brand: 'ARAL',
-      street: 'Musterstraße',
-      house_number: '1',
-      post_code: 12345,
-      city: 'Musterstadt',
-    };
-
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-      'sensor.aral_e10': { entity_id: 'sensor.aral_e10', device_id: 'test-device-id' },
-      'sensor.aral_diesel': { entity_id: 'sensor.aral_diesel', device_id: 'test-device-id' },
-      'binary_sensor.aral_status': { entity_id: 'binary_sensor.aral_status', device_id: 'test-device-id' },
-    };
-
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: { ...commonAttributes, friendly_name: 'Aral Super E5', fuel_type: 'e5', unit_of_measurement: '€' },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-      'sensor.aral_e10': {
-        entity_id: 'sensor.aral_e10',
-        state: '1.799',
-        attributes: {
-          ...commonAttributes,
-          friendly_name: 'Aral Super E10',
-          fuel_type: 'e10',
-          unit_of_measurement: '€',
-        },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-      'sensor.aral_diesel': {
-        entity_id: 'sensor.aral_diesel',
-        state: '1.699',
-        attributes: {
-          ...commonAttributes,
-          friendly_name: 'Aral Diesel',
-          fuel_type: 'diesel',
-          unit_of_measurement: '€',
-        },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-      'binary_sensor.aral_status': {
-        entity_id: 'binary_sensor.aral_status',
-        state: 'on',
-        attributes: { ...commonAttributes, friendly_name: 'Aral Status' },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-    };
+    const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', {
+      e5: '1.899',
+      e10: '1.799',
+      diesel: '1.699',
+    });
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
 
     element.hass = hass;
     element.setConfig(config);
@@ -133,32 +152,22 @@ describe('TankerkoenigCard', () => {
     expect(stationEl?.querySelector('.station-name')?.textContent).toBe('ARAL Tankstelle');
 
     const prices = stationEl?.querySelectorAll('.price-container');
+    const fuelTypes = stationEl?.querySelectorAll('.fuel-type');
+    const priceValues = stationEl?.querySelectorAll('.price');
+
     expect(prices?.length).toBe(3);
-    expect(prices?.[0].textContent).toContain('E5');
-    expect(prices?.[0].textContent).toContain('1.899');
+    expect(fuelTypes?.[0].textContent).toBe('Diesel');
+    expect(priceValues?.[0].textContent).toContain('1.69');
+    expect(fuelTypes?.[1].textContent).toBe('E10');
+    expect(priceValues?.[1].textContent).toContain('1.79');
   });
 
   it('should show address when show_address is true', async () => {
+    const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
     config.show_address = true;
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-    };
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: {
-          street: 'Musterstraße',
-          house_number: '1',
-          post_code: 12345,
-          city: 'Musterstadt',
-          station_name: 'ARAL Tankstelle',
-          fuel_type: 'e5',
-        },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-    };
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
 
     element.hass = hass;
     element.setConfig(config);
@@ -170,19 +179,11 @@ describe('TankerkoenigCard', () => {
   });
 
   it('should hide address when show_address is false', async () => {
+    const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
     config.show_address = false;
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-    };
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: {},
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-    };
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
 
     element.hass = hass;
     element.setConfig(config);
@@ -193,35 +194,11 @@ describe('TankerkoenigCard', () => {
   });
 
   it('should sort fuel types based on configuration', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.799', diesel: '1.699' });
     config.fuel_types = ['diesel', 'e10', 'e5'];
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-      'sensor.aral_e10': { entity_id: 'sensor.aral_e10', device_id: 'test-device-id' },
-      'sensor.aral_diesel': { entity_id: 'sensor.aral_diesel', device_id: 'test-device-id' },
-    };
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: { station_name: 'ARAL', fuel_type: 'e5', unit_of_measurement: '€' },
-        last_changed: '',
-        last_updated: '',
-      },
-      'sensor.aral_e10': {
-        entity_id: 'sensor.aral_e10',
-        state: '1.799',
-        attributes: { station_name: 'ARAL', fuel_type: 'e10', unit_of_measurement: '€' },
-        last_changed: '',
-        last_updated: '',
-      },
-      'sensor.aral_diesel': {
-        entity_id: 'sensor.aral_diesel',
-        state: '1.699',
-        attributes: { station_name: 'ARAL', fuel_type: 'diesel', unit_of_measurement: '€' },
-        last_changed: '',
-        last_updated: '',
-      },
-    };
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
 
     element.hass = hass;
     element.setConfig(config);
@@ -233,61 +210,29 @@ describe('TankerkoenigCard', () => {
     expect(prices?.[2].textContent).toBe('E5');
   });
 
-  it('should hide unavailable fuel types when configured', async () => {
-    config.hide_unavailable_fuel = true;
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-      'sensor.aral_e10': { entity_id: 'sensor.aral_e10', device_id: 'test-device-id' },
-    };
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: { station_name: 'ARAL', fuel_type: 'e5', unit_of_measurement: '€' },
-        last_changed: '',
-        last_updated: '',
-      },
-      'sensor.aral_e10': {
-        entity_id: 'sensor.aral_e10',
-        state: 'unavailable',
-        attributes: { station_name: 'ARAL', fuel_type: 'e10', unit_of_measurement: '€' },
-        last_changed: '',
-        last_updated: '',
-      },
-    };
+  it('should hide unavailable stations when configured', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'off');
+    config.hide_unavailable_stations = true;
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
 
     element.hass = hass;
     element.setConfig(config);
     await element.updateComplete;
 
-    const prices = element.shadowRoot?.querySelectorAll('.price-container');
-    expect(prices?.length).toBe(1);
-    expect(prices?.[0].textContent).toContain('E5');
+    const stations = element.shadowRoot?.querySelectorAll('.station');
+    expect(stations?.length).toBe(0);
   });
 
   it('should sort stations by price when sort_by is configured', async () => {
-    config.stations = ['device-1', 'device-2'];
+    const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+    const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+
+    config.stations = [station1.device_id, station2.device_id];
     config.sort_by = 'e10';
-    hass.entities = {
-      'sensor.station1_e10': { entity_id: 'sensor.station1_e10', device_id: 'device-1' },
-      'sensor.station2_e10': { entity_id: 'sensor.station2_e10', device_id: 'device-2' },
-    };
-    hass.states = {
-      'sensor.station1_e10': {
-        entity_id: 'sensor.station1_e10',
-        state: '1.80',
-        attributes: { station_name: 'Station 1', fuel_type: 'e10' },
-        last_changed: '',
-        last_updated: '',
-      },
-      'sensor.station2_e10': {
-        entity_id: 'sensor.station2_e10',
-        state: '1.70',
-        attributes: { station_name: 'Station 2', fuel_type: 'e10' },
-        last_changed: '',
-        last_updated: '',
-      },
-    };
+    hass.entities = { ...station1.entities, ...station2.entities };
+    hass.states = { ...station1.states, ...station2.states };
 
     element.hass = hass;
     element.setConfig(config);
@@ -298,19 +243,90 @@ describe('TankerkoenigCard', () => {
     expect(stationNames?.[1].textContent).toBe('Station 1');
   });
 
+  it('should show last updated when show_last_updated is true', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+    config.show_last_updated = true;
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
+
+    element.hass = hass;
+    element.setConfig(config);
+    await element.updateComplete;
+
+    const lastUpdatedEl = element.shadowRoot?.querySelector('.last-updated');
+    expect(lastUpdatedEl).not.toBeNull();
+  });
+
+  it('should show price up indicator when price has risen', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.829' });
+    config.stations = [station.device_id];
+    config.show_price_changes = true;
+
+    element.setConfig(config);
+
+    (hass.callWS as Mock).mockResolvedValue({
+      'sensor.aral_e5': [
+        { s: '1.809', lu: Date.now() - 1000 },
+        { s: '1.829', lu: Date.now() },
+      ],
+    });
+    hass.entities = station.entities;
+    hass.states = station.states;
+    element.hass = hass;
+    await element['_fetchPriceChanges']();
+    await element.updateComplete;
+
+    const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
+    expect(indicator?.classList.contains('price-up')).toBe(true);
+  });
+
+  it('should show price down indicator when price has fallen', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
+    config.stations = [station.device_id];
+    config.show_price_changes = true;
+
+    element.setConfig(config);
+
+    (hass.callWS as Mock).mockResolvedValue({
+      'sensor.aral_e5': [
+        { s: '1.829', lu: Date.now() - 1000 },
+        { s: '1.809', lu: Date.now() },
+      ],
+    });
+    hass.entities = station.entities;
+    hass.states = station.states;
+    element.hass = hass;
+    await element['_fetchPriceChanges']();
+    await element.updateComplete;
+
+    const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
+    expect(indicator?.classList.contains('price-down')).toBe(true);
+  });
+
+  it('should display placeholder for unavailable price', async () => {
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: 'unavailable' });
+    config.stations = [station.device_id];
+    config.fuel_types = ['e10', 'e5']; // Set explicit order for test predictability
+    hass.entities = station.entities;
+    hass.states = station.states;
+
+    element.hass = hass;
+    element.setConfig(config);
+    await element.updateComplete;
+
+    const priceValues = element.shadowRoot?.querySelectorAll('.price');
+    // e10 is unavailable
+    expect(priceValues?.[0].textContent).toContain('-.--');
+    // e5 is available
+    expect(priceValues?.[1].textContent).toContain('1.89');
+  });
+
   it('should fire hass-more-info event on click', async () => {
-    hass.entities = {
-      'sensor.aral_e5': { entity_id: 'sensor.aral_e5', device_id: 'test-device-id' },
-    };
-    hass.states = {
-      'sensor.aral_e5': {
-        entity_id: 'sensor.aral_e5',
-        state: '1.899',
-        attributes: { fuel_type: 'e5' },
-        last_changed: new Date().toISOString(),
-        last_updated: new Date().toISOString(),
-      },
-    };
+    const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
+    config.stations = [station.device_id];
+    hass.entities = station.entities;
+    hass.states = station.states;
     element.hass = hass;
     element.setConfig(config);
     await element.updateComplete;
@@ -318,6 +334,6 @@ describe('TankerkoenigCard', () => {
     const priceEl = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
     priceEl?.click();
 
-    expect(fireEventSpy).toHaveBeenCalledWith(element, 'hass-more-info', { entityId: 'sensor.aral_e5' });
+    expect(fireEventSpy).toHaveBeenCalledWith(element, 'hass-more-info', { entityId: 'sensor.aral_diesel' });
   });
 });

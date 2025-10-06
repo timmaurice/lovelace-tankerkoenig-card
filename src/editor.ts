@@ -53,6 +53,10 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         selector: { boolean: {} },
       },
       {
+        name: 'hide_unavailable_stations',
+        selector: { boolean: {} },
+      },
+      {
         name: 'fuel_types',
         selector: {
           select: {
@@ -68,10 +72,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             ],
           },
         },
-      },
-      {
-        name: 'hide_unavailable_stations',
-        selector: { boolean: {} },
       },
       {
         name: 'sort_by',

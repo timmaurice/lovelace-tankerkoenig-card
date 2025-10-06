@@ -20,10 +20,6 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 - Fully customizable through the visual editor.
 - Easy station selection using the visual editor.
 
-To have a gas station like font:
-Add a CSS resource:
-```/local/tankerkoenig-card/stylesheet.css```
-
 ## Localization
 
 The editor is available in the following languages:
@@ -66,19 +62,45 @@ You can now add the card to your dashboard.
 
 </details>
 
+## Available Gas Station Logos
+
+The card automatically displays logos for many gas station brands. The logo is determined by the `brand` attribute of your sensor.
+
+Some of the supported brands include:
+
+- Aral
+- Bell Oil
+- BFT
+- Jet
+- Shell
+- Star
+
+If a logo for a specific brand is missing, the card will show a generic fallback logo. You can check the `src/gasstation_logos` directory for a full list of available logos.
+
+If you are missing a logo, please open an [issue](https://github.com/timmaurice/lovelace-tankerkoenig-card/issues) and provide the brand name _(entity attribute)_.
+
+## Custom Font
+
+To achieve the digital clock-style font for the prices as seen in the screenshots, you need to add the stylesheet to your Lovelace resources.
+
+1.  Copy the `stylesheet.css` file from the `dist` folder of this repository into your `config/www/tankerkoenig-card/` directory.
+2.  Add the stylesheet as a resource in Home Assistant under `Settings` -> `Dashboards` -> `...` (top right) -> `Resources`.
+    - URL: `/local/tankerkoenig-card/stylesheet.css`
+    - Resource Type: `Stylesheet (CSS)`
+
 ## Configuration
 
-| Name                        | Type                               | Default                  | Description                                                  |
-| --------------------------- | ---------------------------------- | ------------------------ | ------------------------------------------------------------ |
-| `type`                      | string                             | **Required**             | `custom:tankerkoenig-card`                                   |
-| `title`                     | string                             | `''`                     | The title of the card.                                       |
-| `stations`                  | list (string)                      | **Required**             | A list of device IDs for your stations from the Tankerkönig integration. |
-| `show_address`              | boolean                            | `false`                  | Show the address of the station.                             |
-| `show_last_updated`         | boolean                            | `false`                  | Show the last updated timestamp for the station.             |
-| `show_price_changes`        | boolean                            | `false`                  | Show an indicator for price increases or decreases.          |
-| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')   | `['e5', 'e10', 'diesel']` | The order in which to display the fuel types.                |
-| `hide_unavailable_stations` | boolean                            | `false`                  | Hide stations that are currently closed.                     |
-| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                 | Sort stations by the price of the selected fuel type.        |
+| Name                        | Type                                | Default                   | Description                                                              |
+| --------------------------- | ----------------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                               |
+| `title`                     | string                              | `''`                      | The title of the card.                                                   |
+| `stations`                  | list (string)                       | **Required**              | A list of device IDs for your stations from the Tankerkönig integration. |
+| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                         |
+| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                         |
+| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                      |
+| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                            |
+| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                 |
+| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                    |
 
 ### Examples
 
