@@ -1,11 +1,6 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import {
-  HomeAssistant,
-  LovelaceCard,
-  LovelaceCardEditor,
-  TankerkoenigCardConfig,
-} from './types.js';
+import { HomeAssistant, LovelaceCard, LovelaceCardEditor, TankerkoenigCardConfig } from './types.js';
 import { localize } from './localize';
 import styles from './styles/card.styles.scss';
 
@@ -50,7 +45,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     const helpers = await window.loadCardHelpers();
     if (helpers) {
       const entitiesCard = await helpers.createCardElement({ type: 'entities', entities: [] });
-      await (entitiesCard.constructor as LovelaceCardConstructor & { getConfigElement(): Promise<LovelaceCardEditor> }).getConfigElement();
+      await (
+        entitiesCard.constructor as LovelaceCardConstructor & { getConfigElement(): Promise<LovelaceCardEditor> }
+      ).getConfigElement();
     }
 
     await import('./editor.js');
