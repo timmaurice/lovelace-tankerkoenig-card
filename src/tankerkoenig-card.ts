@@ -40,7 +40,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @query('ha-card') private _card!: LovelaceCard;
   @state() private _config!: TankerkoenigCardConfig;
-  @state() private _oldHass: HomeAssistant | undefined;
   @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
 
   public setConfig(config: TankerkoenigCardConfig): void {
@@ -126,7 +125,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         this._fetchPriceChanges();
         return true;
       }
-      this._oldHass = oldHass;
     }
 
     return true; // First render

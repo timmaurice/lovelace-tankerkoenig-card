@@ -63,12 +63,12 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             multiple: true,
             mode: 'list',
             options: [
-              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
-              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
               {
                 value: 'diesel',
                 label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.diesel'),
               },
+              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
+              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
             ],
           },
         },
@@ -80,12 +80,12 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             mode: 'dropdown',
             options: [
               { value: 'none', label: localize(this.hass, 'component.tankerkoenig-card.editor.sort_by_options.none') },
-              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
-              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
               {
                 value: 'diesel',
                 label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.diesel'),
               },
+              { value: 'e10', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e10') },
+              { value: 'e5', label: localize(this.hass, 'component.tankerkoenig-card.editor.fuel_type_options.e5') },
             ],
           },
         },
