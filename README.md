@@ -43,13 +43,11 @@ If you would like to contribute a new translation:
 
 ## Installation
 
-<!--
 ### HACS (Recommended)
 
 This card is available in the [Home Assistant Community Store (HACS)](https://hacs.xyz/).
 
 <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=timmaurice&repository=lovelace-tankerkoenig-card&category=plugin" target="_blank" rel="noreferrer noopener"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." /></a>
--->
 
 <details>
 <summary>Manual Installation</summary>
@@ -88,13 +86,13 @@ If a logo for a specific brand is missing, the card will show a generic fallback
 
 If you are missing a logo, please open an [issue](https://github.com/timmaurice/lovelace-tankerkoenig-card/issues) and provide the brand name _(entity attribute)_.
 
-## Custom Font
+## Custom Font _(Manual Step Required)_
 
 To achieve the digital clock-style font for the prices as seen in the screenshots, you need to add the stylesheet to your Lovelace resources.
 
-1.  Copy the `stylesheet.css` file from the `dist` folder of this repository into your `config/www/tankerkoenig-card/` directory.
-2.  Add the stylesheet as a resource in Home Assistant under `Settings` -> `Dashboards` -> `...` (top right) -> `Resources`.
-    - URL: `/local/tankerkoenig-card/stylesheet.css`
+1.  Copy the [`stylesheet.css`](https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/refs/heads/main/dist/stylesheet.css) file from the `dist` folder of this repository into your `config/www/community/lovelace-tankerkoenig-card/` directory.
+2.  Add the stylesheet as a resource in Home Assistant under `Settings` -> `Dashboards` -> `⋮` (top right) -> `Resources`.
+    - URL: `/hacsfiles/lovelace-tankerkoenig-card/stylesheet.css`
     - Resource Type: `Stylesheet (CSS)`
 
 ## Configuration
