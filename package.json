@@ -1,6 +1,6 @@
 {
   "name": "tankerkoenig-card",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Lovelace card to display German fuel prices from Tankerkönig.",
   "homepage": "https://github.com/timmaurice/lovelace-tankerkoenig-card#readme",
   "bugs": {

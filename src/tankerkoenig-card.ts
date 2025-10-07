@@ -243,14 +243,16 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const attributes = stateObj.attributes;
             const device = this.hass.devices[stationId];
 
-            const stationName = device?.name_by_user || device?.name || attributes.station_name || attributes.friendly_name;
+            const stationName =
+              device?.name_by_user || device?.name || attributes.station_name || attributes.friendly_name;
 
             const capitalize = (str: string): string =>
               str ? str.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase()) : '';
 
+            const houseNumber = attributes.house_number as string;
             const streetPart = [
               capitalize((attributes.street as string) || ''),
-              ((attributes.house_number as string) || '').trim(),
+              houseNumber && houseNumber.toLowerCase() !== 'none' ? houseNumber.trim() : '',
             ]
               .filter(Boolean)
               .join(' ');
@@ -269,7 +271,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       attributes.brand as string
                     )
                       ?.toLowerCase()
-                      .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.png"
+                      .replace(/\s+/g, '-')
+                      .replace(/[^a-z0-9-]/g, '')}.png"
                     alt="${attributes.brand}"
                     @error=${(e: Event) =>
                       ((e.target as HTMLImageElement).src =

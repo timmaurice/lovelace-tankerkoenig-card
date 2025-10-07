@@ -1,4 +1,4 @@
-function t(t,e,s,i){var n,o=arguments.length,r=o<3?e:null===i?i=Object.getOwnPropertyDescriptor(e,s):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,s,i);else for(var a=t.length-1;a>=0;a--)(n=t[a])&&(r=(o<3?n(r):o>3?n(e,s,r):n(e,s))||r);return o>3&&r&&Object.defineProperty(e,s,r),r}console.groupCollapsed("%c⛽️ TANKERKOENIG CARD%cv1.0.0","color: orange; font-weight: bold; background: black; padding: 2px 4px; border-radius: 2px 0 0 2px;","color: white; font-weight: bold; background: dimgray; padding: 2px 4px; border-radius: 0 2px 2px 0;"),console.info("A Lovelace card to display German fuel prices from Tankerkönig."),console.info("Github:  https://github.com/timmaurice/lovelace-tankerkoenig-card.git"),console.info("Sponsor: https://buymeacoffee.com/timmaurice"),console.groupEnd(),"function"==typeof SuppressedError&&SuppressedError;
+function t(t,e,s,i){var n,o=arguments.length,r=o<3?e:null===i?i=Object.getOwnPropertyDescriptor(e,s):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,s,i);else for(var a=t.length-1;a>=0;a--)(n=t[a])&&(r=(o<3?n(r):o>3?n(e,s,r):n(e,s))||r);return o>3&&r&&Object.defineProperty(e,s,r),r}console.groupCollapsed("%c⛽️ TANKERKOENIG CARD%cv1.0.1","color: orange; font-weight: bold; background: black; padding: 2px 4px; border-radius: 2px 0 0 2px;","color: white; font-weight: bold; background: dimgray; padding: 2px 4px; border-radius: 0 2px 2px 0;"),console.info("A Lovelace card to display German fuel prices from Tankerkönig."),console.info("Github:  https://github.com/timmaurice/lovelace-tankerkoenig-card.git"),console.info("Sponsor: https://buymeacoffee.com/timmaurice"),console.groupEnd(),"function"==typeof SuppressedError&&SuppressedError;
 /**
  * @license
  * Copyright 2019 Google LLC
@@ -59,7 +59,7 @@ const ft=1;class gt{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s)
                 <div class="warning">
                   ${yt(this.hass,"component.tankerkoenig-card.card.station_not_found",{station:s})}
                 </div>
-              `;const o=!!i.status&&"on"===this.hass.states[i.status].state,r=this.hass.states[n],a=r.attributes,c=this.hass.devices[s],l=c?.name_by_user||c?.name||a.station_name||a.friendly_name,h=t=>t?t.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g,t=>t.toUpperCase()):"",d=[[h(a.street||""),(a.house_number||"").trim()].filter(Boolean).join(" "),[a.postcode||"",h(a.city||"")].filter(Boolean).join(" ")].filter(Boolean).join(", ");return W`
+              `;const o=!!i.status&&"on"===this.hass.states[i.status].state,r=this.hass.states[n],a=r.attributes,c=this.hass.devices[s],l=c?.name_by_user||c?.name||a.station_name||a.friendly_name,h=t=>t?t.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g,t=>t.toUpperCase()):"",d=a.house_number,p=[[h(a.street||""),d&&"none"!==d.toLowerCase()?d.trim():""].filter(Boolean).join(" "),[a.postcode||"",h(a.city||"")].filter(Boolean).join(" ")].filter(Boolean).join(", ");return W`
               <div class="station ${o?"open":"closed"}" tabindex="0">
                 <div class="logo-container">
                   <img
@@ -73,7 +73,7 @@ const ft=1;class gt{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s)
                   <div class="row-1">
                     <span class="station-name">${l}</span>
                   </div>
-                  ${this._config.show_address?W`<div class="row-2"><span class="address">${d}</span></div>`:""}
+                  ${this._config.show_address?W`<div class="row-2"><span class="address">${p}</span></div>`:""}
                   ${this._config.show_last_updated?W`<div class="row-3">
                         <span class="last-updated">${function(t,e){const s=new Date(t),i=new Date,n={hour:"numeric",minute:"2-digit"};return s.getDate()===i.getDate()&&s.getMonth()===i.getMonth()&&s.getFullYear()===i.getFullYear()||Object.assign(n,{year:"numeric",month:"short",day:"2-digit"}),"12"===e.locale?.time_format&&(n.hour12=!0),s.toLocaleString(e.language,n)}(r.last_updated,this.hass)}</span>
                       </div>`:""}

@@ -6,3 +6,5 @@ bun.lock
 yarn.lock
 
 .DS_Store
+
+*.bak

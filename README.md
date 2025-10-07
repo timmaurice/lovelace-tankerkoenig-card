@@ -74,9 +74,13 @@ Some of the supported brands include:
 - Bell Oil
 - BFT
 - Esso
+- Globus
 - HEM
+- Hornbach
 - Jet
+- Minera
 - MOL
+- Oil!
 - OMV
 - Shell
 - Star
