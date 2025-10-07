@@ -78,7 +78,7 @@ Some of the supported brands include:
 - HEM
 - Hornbach
 - Jet
-- Minera
+- Minera / Minera Automatenstation
 - MOL
 - Oil!
 - OMV
