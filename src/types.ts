@@ -1,3 +1,9 @@
+export interface HassDevice {
+  id: string;
+  name: string;
+  name_by_user?: string;
+}
+
 export interface FrontendLocaleData {
   language: string;
   number_format: 'comma_decimal' | 'decimal_comma' | 'space_comma' | 'system';
@@ -9,6 +15,7 @@ export interface FrontendLocaleData {
 export interface HomeAssistant {
   states: { [entity_id: string]: HassEntity };
   entities: { [entity_id: string]: HassEntityRegistryDisplayEntry };
+  devices: { [deviceId: string]: HassDevice };
   localize: (key: string, ...args: unknown[]) => string;
   language: string;
   locale: FrontendLocaleData;

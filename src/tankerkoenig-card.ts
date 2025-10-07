@@ -241,10 +241,24 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const isOpen = station.status ? this.hass.states[station.status].state === 'on' : false;
             const stateObj = this.hass.states[primaryEntity];
             const attributes = stateObj.attributes;
-            const stationName = attributes.station_name || attributes.friendly_name;
-            const address = `${attributes.street || ''} ${attributes.house_number || ''}, ${
-              attributes.post_code || ''
-            } ${attributes.city || ''}`;
+            const device = this.hass.devices[stationId];
+
+            const stationName = device?.name_by_user || device?.name || attributes.station_name || attributes.friendly_name;
+
+            const capitalize = (str: string): string =>
+              str ? str.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase()) : '';
+
+            const streetPart = [
+              capitalize((attributes.street as string) || ''),
+              ((attributes.house_number as string) || '').trim(),
+            ]
+              .filter(Boolean)
+              .join(' ');
+            const cityPart = [(attributes.postcode as number) || '', capitalize((attributes.city as string) || '')]
+              .filter(Boolean)
+              .join(' ');
+
+            const address = [streetPart, cityPart].filter(Boolean).join(', ');
 
             return html`
               <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
@@ -255,7 +269,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       attributes.brand as string
                     )
                       ?.toLowerCase()
-                      .replace(/ /g, '-')}.png"
+                      .replace(/\s+/g, '-')}.png"
                     alt="${attributes.brand}"
                     @error=${(e: Event) =>
                       ((e.target as HTMLImageElement).src =

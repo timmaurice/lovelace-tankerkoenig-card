@@ -31,14 +31,20 @@ const createMockStation = (
   const device_id = `device-${id}`;
   const states: HomeAssistant['states'] = {};
   const entities: HomeAssistant['entities'] = {};
+  const devices: HomeAssistant['devices'] = {};
 
   const commonAttributes = {
     station_name: name,
     brand,
     street: 'Musterstraße',
     house_number: '1',
-    post_code: 12345,
+    postcode: 12345,
     city: 'Musterstadt',
+  };
+
+  devices[device_id] = {
+    id: device_id,
+    name: name,
   };
 
   for (const fuel of ['e5', 'e10', 'diesel'] as const) {
@@ -70,7 +76,7 @@ const createMockStation = (
     last_updated: new Date().toISOString(),
   };
 
-  return { entities, states, device_id };
+  return { entities, states, devices, device_id };
 };
 
 describe('TankerkoenigCard', () => {
@@ -90,6 +96,7 @@ describe('TankerkoenigCard', () => {
       },
       states: {},
       entities: {},
+      devices: {},
       callWS: vi.fn(),
     } as HomeAssistant;
 
@@ -123,6 +130,7 @@ describe('TankerkoenigCard', () => {
     config.title = 'Fuel Prices';
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
     element.hass = hass;
     element.setConfig(config);
     await element.updateComplete;
@@ -140,6 +148,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -168,6 +177,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -184,6 +194,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -199,6 +210,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -216,6 +228,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -233,6 +246,7 @@ describe('TankerkoenigCard', () => {
     config.sort_by = 'e10';
     hass.entities = { ...station1.entities, ...station2.entities };
     hass.states = { ...station1.states, ...station2.states };
+    hass.devices = { ...station1.devices, ...station2.devices };
 
     element.hass = hass;
     element.setConfig(config);
@@ -249,6 +263,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -273,6 +288,7 @@ describe('TankerkoenigCard', () => {
     });
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
     element.hass = hass;
     await element['_fetchPriceChanges']();
     await element.updateComplete;
@@ -296,6 +312,7 @@ describe('TankerkoenigCard', () => {
     });
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
     element.hass = hass;
     await element['_fetchPriceChanges']();
     await element.updateComplete;
@@ -310,6 +327,7 @@ describe('TankerkoenigCard', () => {
     config.fuel_types = ['e10', 'e5']; // Set explicit order for test predictability
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
 
     element.hass = hass;
     element.setConfig(config);
@@ -327,6 +345,7 @@ describe('TankerkoenigCard', () => {
     config.stations = [station.device_id];
     hass.entities = station.entities;
     hass.states = station.states;
+    hass.devices = station.devices;
     element.hass = hass;
     element.setConfig(config);
     await element.updateComplete;
