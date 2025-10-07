@@ -73,11 +73,13 @@ Some of the supported brands include:
 - Avia
 - Bell Oil
 - BFT
+- E Center
 - Esso
 - Globus
 - HEM
 - Hornbach
 - Jet
+- Mr.Wash
 - Minera / Minera Automatenstation
 - MOL
 - Oil!
