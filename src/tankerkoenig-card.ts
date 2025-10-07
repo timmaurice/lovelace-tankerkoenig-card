@@ -247,7 +247,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               device?.name_by_user || device?.name || attributes.station_name || attributes.friendly_name;
 
             const capitalize = (str: string): string =>
-              str ? str.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase()) : '';
+              str ? str.toLowerCase().replace(/(?:^|\s|["'([{]|-)+\S/g, (match) => match.toUpperCase()) : '';
 
             const houseNumber = attributes.house_number as string;
             const streetPart = [

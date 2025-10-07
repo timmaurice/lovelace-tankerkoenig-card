@@ -59,7 +59,7 @@ const ft=1;class gt{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s)
                 <div class="warning">
                   ${yt(this.hass,"component.tankerkoenig-card.card.station_not_found",{station:s})}
                 </div>
-              `;const o=!!i.status&&"on"===this.hass.states[i.status].state,r=this.hass.states[n],a=r.attributes,c=this.hass.devices[s],l=c?.name_by_user||c?.name||a.station_name||a.friendly_name,h=t=>t?t.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g,t=>t.toUpperCase()):"",d=a.house_number,p=[[h(a.street||""),d&&"none"!==d.toLowerCase()?d.trim():""].filter(Boolean).join(" "),[a.postcode||"",h(a.city||"")].filter(Boolean).join(" ")].filter(Boolean).join(", ");return W`
+              `;const o=!!i.status&&"on"===this.hass.states[i.status].state,r=this.hass.states[n],a=r.attributes,c=this.hass.devices[s],l=c?.name_by_user||c?.name||a.station_name||a.friendly_name,h=t=>t?t.toLowerCase().replace(/(?:^|\s|["'([{]|-)+\S/g,t=>t.toUpperCase()):"",d=a.house_number,p=[[h(a.street||""),d&&"none"!==d.toLowerCase()?d.trim():""].filter(Boolean).join(" "),[a.postcode||"",h(a.city||"")].filter(Boolean).join(" ")].filter(Boolean).join(", ");return W`
               <div class="station ${o?"open":"closed"}" tabindex="0">
                 <div class="logo-container">
                   <img
