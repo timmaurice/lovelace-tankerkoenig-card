@@ -269,7 +269,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       attributes.brand as string
                     )
                       ?.toLowerCase()
-                      .replace(/\s+/g, '-')}.png"
+                      .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.png"
                     alt="${attributes.brand}"
                     @error=${(e: Event) =>
                       ((e.target as HTMLImageElement).src =

@@ -64,7 +64,7 @@ const ft=1;class gt{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s)
                 <div class="logo-container">
                   <img
                     class="logo"
-                    src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/${a.brand?.toLowerCase().replace(/\s+/g,"-")}.png"
+                    src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/${a.brand?.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")}.png"
                     alt="${a.brand}"
                     @error=${t=>t.target.src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/404.png"}
                   />
