@@ -87,6 +87,7 @@ Some of the supported brands include:
 - OMV
 - Shell
 - Star
+- Total
 - Total Energies
 
 If a logo for a specific brand is missing, the card will show a generic fallback logo. You can check the `src/gasstation_logos` directory for a full list of available logos.
