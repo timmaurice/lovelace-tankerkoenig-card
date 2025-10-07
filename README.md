@@ -15,6 +15,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 
 - Displays prices for multiple fuel stations from the Tankerkönig integration.
 - Sort stations by price for a specific fuel type.
+- Show only the cheapest station based on a selected fuel type.
 - Show/hide station address and last updated timestamp.
 - Customize the order of displayed fuel types.
 - Show indicators for price increases or decreases.
@@ -103,17 +104,18 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 
 ## Configuration
 
-| Name                        | Type                                | Default                   | Description                                                              |
-| --------------------------- | ----------------------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                               |
-| `title`                     | string                              | `''`                      | The title of the card.                                                   |
-| `stations`                  | list (string)                       | **Required**              | A list of device IDs for your stations from the Tankerkönig integration. |
-| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                         |
-| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                         |
-| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                      |
-| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                            |
-| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                 |
-| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                    |
+| Name                        | Type                                | Default                   | Description                                                                  |
+| --------------------------- | ----------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                                   |
+| `title`                     | string                              | `''`                      | The title of the card.                                                       |
+| `stations`                  | list (string)                       | **Required**              | A list of device IDs for your stations from the Tankerkönig integration.     |
+| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                             |
+| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                             |
+| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                          |
+| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                                |
+| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                     |
+| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                        |
+| `show_only_cheapest`        | boolean                             | `false`                   | Show only the cheapest station. Requires `sort_by` to be set to a fuel type. |
 
 ### Examples
 

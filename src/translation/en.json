@@ -11,6 +11,7 @@
     "fuel_types": "Fuel Types Order",
     "hide_unavailable_stations": "Hide Unavailable Stations",
     "sort_by": "Sort Stations by Price",
+    "show_only_cheapest": "Show Only Cheapest Station",
     "fuel_type_options": {
       "e5": "Super E5",
       "e10": "Super E10",

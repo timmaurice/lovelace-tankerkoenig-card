@@ -11,6 +11,7 @@
     "hass",
     "Hornbach",
     "Minera",
+    "tankerkoenig",
     "Tankerkönig"
   ],
   "cSpell.ignorePaths": [".github/**", "node_modules/**", "dist/**"]

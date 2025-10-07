@@ -223,6 +223,27 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       });
     }
 
+    if (this._config.show_only_cheapest && sortBy && sortBy !== 'none') {
+      const stationsWithPrice = stationEntries.filter(([, station]) => {
+        const entityId = station[sortBy as keyof Station];
+        return entityId && !isNaN(parseFloat(this.hass.states[entityId].state));
+      });
+
+      if (stationsWithPrice.length > 0) {
+        const minPrice = Math.min(
+          ...stationsWithPrice.map(([, station]) => {
+            const entityId = station[sortBy as keyof Station]!;
+            return parseFloat(this.hass.states[entityId].state);
+          }),
+        );
+
+        stationEntries = stationsWithPrice.filter(([, station]) => {
+          const entityId = station[sortBy as keyof Station]!;
+          return parseFloat(this.hass.states[entityId].state) === minPrice;
+        });
+      }
+    }
+
     return html`
       <ha-card .header=${this._config.title} tabindex="0">
         <div class="card-content">

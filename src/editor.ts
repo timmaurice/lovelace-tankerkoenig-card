@@ -26,7 +26,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       return html``;
     }
 
-    const schema = [
+    let schema = [
       {
         name: 'title',
         selector: { text: {} },
@@ -90,7 +90,15 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
           },
         },
       },
+      {
+        name: 'show_only_cheapest',
+        selector: { boolean: {} },
+      },
     ];
+
+    if (!this._config.sort_by || this._config.sort_by === 'none') {
+      schema = schema.filter((item) => item.name !== 'show_only_cheapest');
+    }
 
     return html`
       <ha-card>
