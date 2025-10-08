@@ -13,7 +13,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 
 ## Features
 
-- Displays prices for multiple fuel stations from the Tankerkönig integration.
+- Displays prices for multiple fuel stations from the [Tankerkönig integration](https://www.home-assistant.io/integrations/tankerkoenig/).
 - Sort stations by price for a specific fuel type.
 - Show only the cheapest station based on a selected fuel type.
 - Show/hide station address and last updated timestamp.
@@ -81,9 +81,10 @@ Some of the supported brands include:
 - HEM
 - Hornbach
 - Jet
-- Mr.Wash
 - Minera / Minera Automatenstation
 - MOL
+- Mr.Wash
+- MTB
 - OIL!
 - OMV
 - Shell
