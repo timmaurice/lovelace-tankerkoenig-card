@@ -7,8 +7,8 @@
 .group {
   border: 1px solid var(--divider-color);
   border-radius: var(--ha-card-border-radius, 4px);
-  padding: 16px;
   margin-top: 8px;
+  padding: 16px;
 }
 
 .group-header {
@@ -19,9 +19,9 @@
 }
 
 .row {
+  align-items: center;
   display: flex;
   flex-direction: row;
-  align-items: center;
   gap: 16px;
 
   & > * {
@@ -31,8 +31,82 @@
 }
 
 ha-formfield {
-  display: flex;
   align-items: center;
+  display: flex;
   justify-content: space-between;
   padding-bottom: 8px;
+}
+
+.station-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .logo {
+    border-radius: 4px;
+    flex-shrink: 0;
+    height: 32px;
+    object-fit: contain;
+    width: 32px;
+  }
+
+  .station-name {
+    flex-grow: 1;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.add-icon {
+  margin-right: 8px;
+}
+
+.tabs {
+  border-bottom: 1px solid var(--divider-color);
+  display: flex;
+}
+
+.tab-content {
+  padding-top: 16px;
+}
+
+ha-tab {
+  --paper-tabs-selection-bar-color: var(--primary-color);
+  color: var(--secondary-text-color);
+  cursor: pointer;
+  padding: 0 16px;
+  position: relative;
+
+  &.active {
+    border-bottom: 2px solid var(--primary-color);
+    color: var(--primary-text-color);
+    margin-bottom: -1px;
+  }
+}
+
+.search-bar {
+  padding: 0 24px;
+}
+
+ha-textfield {
+  width: 100%;
+}
+
+.device-list {
+  margin-top: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+ha-dialog {
+  --mdc-dialog-min-width: 400px;
+  --mdc-dialog-max-width: 500px;
+
+  ha-textfield {
+    display: block;
+    margin-bottom: 16px;
+  }
 }

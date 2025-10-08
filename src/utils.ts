@@ -8,8 +8,14 @@ import { HomeAssistant } from './types';
  * @param detail The detail value to pass with the event.
  * @param options The options for the event.
  */
-export const fireEvent = <T>(node: HTMLElement, type: string, detail?: T, options?: CustomEventInit<T>): void => {
+export const fireEvent = <T>(
+  node: HTMLElement | Window,
+  type: string,
+  detail?: T,
+  options?: CustomEventInit<T>,
+): void => {
   const event = new CustomEvent(type, { bubbles: true, cancelable: false, composed: true, ...options, detail });
+  // Dispatch from window to ensure it reaches the dialog manager
   node.dispatchEvent(event);
 };
 
@@ -42,4 +48,24 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
   }
 
   return dateObj.toLocaleString(hass.language, options);
+}
+
+const LOGO_BASE_URL =
+  'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
+
+/**
+ * Generates a URL for a gas station logo based on the brand name.
+ * @param brand The brand name of the gas station.
+ * @returns The URL for the logo.
+ */
+export function getLogoUrl(brand?: string): string {
+  if (!brand) {
+    return `${LOGO_BASE_URL}404.png`;
+  }
+
+  const formattedBrand = brand
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+  return `${LOGO_BASE_URL}${formattedBrand}.png`;
 }

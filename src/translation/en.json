@@ -1,7 +1,8 @@
 {
   "editor": {
     "groups": {
-      "core": "Core Configuration"
+      "core": "Core Configuration",
+      "display": "Display"
     },
     "title": "Title (Optional)",
     "stations": "Station Entities",
@@ -19,7 +20,16 @@
     },
     "sort_by_options": {
       "none": "None"
-    }
+    },
+    "add_station": "Add Station",
+    "customize": "Customize",
+    "remove": "Remove",
+    "logo_url": "Logo URL (Optional)",
+    "logo_url_placeholder": "Path to a custom logo",
+    "save": "Save",
+    "cancel": "Cancel",
+    "tab_select": "Select",
+    "tab_customize": "Customize"
   },
   "card": {
     "station_not_found": "Station not found: {station}"

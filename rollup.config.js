@@ -35,10 +35,11 @@ function logCardInfo() {
 
 export default {
   input: 'src/tankerkoenig-card.ts',
+  context: 'window', // Fix for "this" being undefined in some modules
   output: {
     file: pkg.main,
     format: 'es',
-    sourcemap: dev,
+    sourcemap: dev, // Keep sourcemaps for debugging in dev mode
     banner: logCardInfo(),
     inlineDynamicImports: true,
   },

@@ -427,4 +427,35 @@ describe('TankerkoenigCard', () => {
       expect(fireEventSpy).toHaveBeenCalledWith(element, 'hass-more-info', { entityId: 'sensor.aral_diesel' });
     });
   });
+
+  describe('Custom Logo', () => {
+    it('should use the default logo if no custom logo is provided', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      config.stations = [station.device_id];
+      hass.entities = station.entities;
+      hass.states = station.states;
+      hass.devices = station.devices;
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
+      expect(logo?.src).toContain('aral.png');
+    });
+
+    it('should use the custom logo when provided in the configuration', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      const customLogoUrl = 'https://example.com/my-custom-logo.png';
+      config.stations = [{ device: station.device_id, logo: customLogoUrl }];
+      hass.entities = station.entities;
+      hass.states = station.states;
+      hass.devices = station.devices;
+      element.hass = hass;
+      element.setConfig(config);
+      await element.updateComplete;
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
+      expect(logo?.src).toBe(customLogoUrl);
+    });
+  });
 });

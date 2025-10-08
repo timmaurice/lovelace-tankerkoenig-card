@@ -3,17 +3,20 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { localize } from './localize';
-import { fireEvent, formatDate } from './utils';
+import { fireEvent, formatDate, getLogoUrl } from './utils';
 import styles from './styles/card.styles.scss';
 
 export interface LovelaceHelpers {
   createCardElement(config: { type: string; [key: string]: unknown }): LovelaceCard;
 }
 
+export type StationConfig = string | { device: string; logo?: string };
+
 interface Station {
   e5?: string;
   e10?: string;
   diesel?: string;
+  logo?: string;
   status?: string;
 }
 
@@ -81,10 +84,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
     const allEntities = Object.values(hass.states);
 
-    config.stations.forEach((station) => {
+    config.stations.forEach((station: StationConfig) => {
+      const deviceId = typeof station === 'string' ? station : (station as { device: string }).device;
+
       const deviceEntities = allEntities.filter(
         (entity) =>
-          hass.entities[entity.entity_id]?.device_id === station &&
+          hass.entities[entity.entity_id]?.device_id === deviceId &&
           (entity.entity_id.startsWith('sensor.') || entity.entity_id.startsWith('binary_sensor.')),
       );
 
@@ -93,17 +98,21 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
 
       // Use the device_id as the unique key for the station.
-      if (!stations[station]) {
-        stations[station] = {};
+      if (!stations[deviceId]) {
+        stations[deviceId] = {};
+      }
+
+      if (typeof station !== 'string' && (station as { logo?: string }).logo) {
+        stations[deviceId].logo = (station as { logo: string }).logo;
       }
 
       deviceEntities.forEach((entity) => {
         const fuelType = entity.attributes.fuel_type;
-        if (fuelType === 'e5') stations[station].e5 = entity.entity_id;
-        if (fuelType === 'e10') stations[station].e10 = entity.entity_id;
-        if (fuelType === 'diesel') stations[station].diesel = entity.entity_id;
+        if (fuelType === 'e5') stations[deviceId].e5 = entity.entity_id;
+        if (fuelType === 'e10') stations[deviceId].e10 = entity.entity_id;
+        if (fuelType === 'diesel') stations[deviceId].diesel = entity.entity_id;
         if (entity.entity_id.endsWith('_status')) {
-          stations[station].status = entity.entity_id;
+          stations[deviceId].status = entity.entity_id;
         }
       });
     });
@@ -286,19 +295,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             return html`
               <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
                 <div class="logo-container">
-                  <img
+                  ${html`<img
                     class="logo"
-                    src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/${(
-                      attributes.brand as string
-                    )
-                      ?.toLowerCase()
-                      .replace(/\s+/g, '-')
-                      .replace(/[^a-z0-9-]/g, '')}.png"
+                    src="${station.logo || getLogoUrl(attributes.brand as string)}"
                     alt="${attributes.brand}"
-                    @error=${(e: Event) =>
-                      ((e.target as HTMLImageElement).src =
-                        'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/404.png')}
-                  />
+                    @error=${(e: Event) => ((e.target as HTMLImageElement).src = getLogoUrl())}
+                  />`}
                 </div>
                 <div class="info">
                   <div class="row-1">

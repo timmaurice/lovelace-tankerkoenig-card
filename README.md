@@ -22,6 +22,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 - Hide stations that are currently closed.
 - Fully customizable through the visual editor.
 - Easy station selection using the visual editor.
+- Overwrite default logos with custom image URLs.
 
 ## Localization
 
@@ -36,7 +37,7 @@ The editor is available in the following languages:
 If you would like to contribute a new translation:
 
 1.  Fork the repository on GitHub.
-2.  In the `src/localize/languages` directory, copy `en.json` and rename it to your language code (e.g., `fr.json` for French).
+2.  In the `src/translation` directory, copy `en.json` and rename it to your language code (e.g., `fr.json` for French).
 3.  Translate all the values in the new file.
 4.  Submit a pull request with your changes.
 
@@ -83,7 +84,7 @@ Some of the supported brands include:
 - Mr.Wash
 - Minera / Minera Automatenstation
 - MOL
-- Oil!
+- OIL!
 - OMV
 - Shell
 - Star
@@ -105,18 +106,18 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 
 ## Configuration
 
-| Name                        | Type                                | Default                   | Description                                                                  |
-| --------------------------- | ----------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
-| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                                   |
-| `title`                     | string                              | `''`                      | The title of the card.                                                       |
-| `stations`                  | list (string)                       | **Required**              | A list of device IDs for your stations from the Tankerkönig integration.     |
-| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                             |
-| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                             |
-| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                          |
-| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                                |
-| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                     |
-| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                        |
-| `show_only_cheapest`        | boolean                             | `false`                   | Show only the cheapest station. Requires `sort_by` to be set to a fuel type. |
+| Name                        | Type                                | Default                   | Description                                                                                                     |
+| --------------------------- | ----------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                                                                      |
+| `title`                     | string                              | `(none)`                  | The title of the card.                                                                                          |
+| `stations`                  | list (string or object)             | **Required**              | A list of device IDs. To set a custom logo, use an object: `{ device: 'YOUR_DEVICE_ID', logo: 'URL_TO_LOGO' }`. |
+| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                                                                |
+| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                                                                |
+| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                                                             |
+| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                                                                   |
+| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                                                        |
+| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                                                           |
+| `show_only_cheapest`        | boolean                             | `false`                   | Show only the cheapest station. Requires `sort_by` to be set to a fuel type.                                    |
 
 ### Examples
 
@@ -132,8 +133,12 @@ fuel_types:
   - e5
   - diesel
 stations:
-  - 2bf48bbf7b0c6a5d40ac7c0dfa2c4178 # Aral Station
+  # Station with default logo
+  - 2bf48bbf7b0c6a5d40ac7c0dfa2c4178
+  # Station with custom logo
   - 99a4943a53c159a2995573795447463d # Jet Station
+  - device: 99a4943a53c159a2995573795447463d
+    logo: /local/my-custom-logo.png
 ```
 
 ## Development
@@ -144,7 +149,7 @@ stations:
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-github-name/lovelace-tankerkoenig-card.git
+    git clone https://github.com/timmaurice/lovelace-tankerkoenig-card.git
     cd lovelace-tankerkoenig-card
     ```
 

@@ -1,6 +1,7 @@
 export interface HassDevice {
   id: string;
   name: string;
+  integration?: string;
   name_by_user?: string;
 }
 
@@ -66,12 +67,16 @@ export interface LovelaceCardEditor extends HTMLElement {
   setConfig(config: LovelaceCardConfig): void;
 }
 
+export type StationConfig = string | { device: string; logo?: string };
+
 export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   title?: string;
-  stations: string[];
+  stations: StationConfig[];
   show_address?: boolean;
   show_last_updated?: boolean;
   fuel_types?: ('e5' | 'e10' | 'diesel')[];
   sort_by?: 'e5' | 'e10' | 'diesel' | 'none';
   hide_unavailable_fuel?: boolean;
+  show_only_cheapest?: boolean;
+  logo_url_placeholder?: string; // Add this for the placeholder text
 }

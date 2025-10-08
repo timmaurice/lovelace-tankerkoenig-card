@@ -1,7 +1,8 @@
 {
   "editor": {
     "groups": {
-      "core": "Grundeinstellungen"
+      "core": "Grundeinstellungen",
+      "display": "Anzeige"
     },
     "title": "Titel (Optional)",
     "stations": "Tankstellen",
@@ -19,7 +20,16 @@
     },
     "sort_by_options": {
       "none": "Keine"
-    }
+    },
+    "add_station": "Tankstelle hinzufügen",
+    "customize": "Anpassen",
+    "remove": "Entfernen",
+    "logo_url": "Logo-URL (Optional)",
+    "logo_url_placeholder": "Pfad zu einem benutzerdefinierten Logo",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "tab_select": "Auswählen",
+    "tab_customize": "Anpassen"
   },
   "card": {
     "station_not_found": "Tankstelle nicht gefunden: {station}"
