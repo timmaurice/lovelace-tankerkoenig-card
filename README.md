@@ -75,6 +75,8 @@ Some of the supported brands include:
 - Avia
 - Bell Oil
 - BFT
+- citi oil
+- Classic
 - E Center
 - Esso
 - Globus
@@ -87,6 +89,8 @@ Some of the supported brands include:
 - MTB
 - OIL!
 - OMV
+- Raiffeisen
+- RAN
 - Shell
 - Star
 - Total
