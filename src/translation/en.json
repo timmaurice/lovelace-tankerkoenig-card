@@ -24,6 +24,7 @@
     "add_station": "Add Station",
     "customize": "Customize",
     "remove": "Remove",
+    "station_name": "Station Name (Optional)",
     "logo_url": "Logo URL (Optional)",
     "logo_url_placeholder": "Path to a custom logo",
     "save": "Save",

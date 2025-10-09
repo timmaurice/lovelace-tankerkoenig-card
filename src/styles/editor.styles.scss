@@ -73,11 +73,10 @@ ha-formfield {
   padding-top: 16px;
 }
 
-ha-tab {
-  --paper-tabs-selection-bar-color: var(--primary-color);
+.tab {
   color: var(--secondary-text-color);
   cursor: pointer;
-  padding: 0 16px;
+  padding: 12px 16px;
   position: relative;
 
   &.active {
@@ -108,5 +107,25 @@ ha-dialog {
   ha-textfield {
     display: block;
     margin-bottom: 16px;
+  }
+
+  button {
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--primary-color);
+    cursor: pointer;
+    height: 36px;
+    padding: 0 8px;
+    text-transform: uppercase;
+
+    &:hover {
+      background-color: rgba(var(--rgb-primary-color), 0.04);
+    }
+
+    &[slot='primaryAction'] {
+      background-color: var(--primary-color);
+      color: var(--text-primary-color);
+    }
   }
 }

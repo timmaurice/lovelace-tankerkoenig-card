@@ -112,18 +112,26 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 
 ## Configuration
 
-| Name                        | Type                                | Default                   | Description                                                                                                     |
-| --------------------------- | ----------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                                                                      |
-| `title`                     | string                              | `(none)`                  | The title of the card.                                                                                          |
-| `stations`                  | list (string or object)             | **Required**              | A list of device IDs. To set a custom logo, use an object: `{ device: 'YOUR_DEVICE_ID', logo: 'URL_TO_LOGO' }`. |
-| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                                                                |
-| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                                                                |
-| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                                                             |
-| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                                                                   |
-| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                                                        |
-| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                                                           |
-| `show_only_cheapest`        | boolean                             | `false`                   | Show only the cheapest station. Requires `sort_by` to be set to a fuel type.                                    |
+| Name                        | Type                                | Default                   | Description                                                                                                       |
+| --------------------------- | ----------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `type`                      | string                              | **Required**              | `custom:tankerkoenig-card`                                                                                        |
+| `title`                     | string                              | `(none)`                  | The title of the card.                                                                                            |
+| `stations`                  | list (string or object)             | **Required**              | A list of device IDs. To set a custom name or logo, use an object: `{ device: '...', name: '...', logo: '...' }`. |
+| `show_address`              | boolean                             | `false`                   | Show the address of the station.                                                                                  |
+| `show_last_updated`         | boolean                             | `false`                   | Show the last updated timestamp for the station.                                                                  |
+| `show_price_changes`        | boolean                             | `false`                   | Show an indicator for price increases or decreases.                                                               |
+| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']` | The order in which to display the fuel types.                                                                     |
+| `hide_unavailable_stations` | boolean                             | `false`                   | Hide stations that are currently closed.                                                                          |
+| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                  | Sort stations by the price of the selected fuel type.                                                             |
+| `show_only_cheapest`        | boolean                             | `false`                   | Show only the cheapest station. Requires `sort_by` to be set to a fuel type.                                      |
+
+### Station Object Parameters
+
+| Name     | Type   | Required     | Description                                          |
+| -------- | ------ | ------------ | ---------------------------------------------------- |
+| `device` | string | **Required** | The device ID of the Tankerkönig station.            |
+| `name`   | string | `(none)`     | A custom name to overwrite the default station name. |
+| `logo`   | string | `(none)`     | A URL to a custom logo for the station.              |
 
 ### Examples
 
@@ -142,9 +150,11 @@ stations:
   # Station with default logo
   - 2bf48bbf7b0c6a5d40ac7c0dfa2c4178
   # Station with custom logo
-  - 99a4943a53c159a2995573795447463d # Jet Station
   - device: 99a4943a53c159a2995573795447463d
     logo: /local/my-custom-logo.png
+  # Station with custom name
+  - device: 99a4943a53c159a2995573795447463d
+    name: My Favorite Station
 ```
 
 ## Development

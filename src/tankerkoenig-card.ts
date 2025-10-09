@@ -1,6 +1,6 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCard, LovelaceCardEditor, TankerkoenigCardConfig } from './types.js';
+import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { localize } from './localize';
 import { fireEvent, formatDate, getLogoUrl } from './utils';
@@ -10,12 +10,11 @@ export interface LovelaceHelpers {
   createCardElement(config: { type: string; [key: string]: unknown }): LovelaceCard;
 }
 
-export type StationConfig = string | { device: string; logo?: string };
-
 interface Station {
   e5?: string;
   e10?: string;
   diesel?: string;
+  name?: string;
   logo?: string;
   status?: string;
 }
@@ -57,12 +56,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     // by loading a core editor that uses them.
     // This is a trick to load the editor dependencies (e.g., ha-entities-picker)
     const helpers = await window.loadCardHelpers();
-    if (helpers) {
-      const entitiesCard = await helpers.createCardElement({ type: 'entities', entities: [] });
-      await (
-        entitiesCard.constructor as LovelaceCardConstructor & { getConfigElement(): Promise<LovelaceCardEditor> }
-      ).getConfigElement();
-    }
+    const entitiesCard = await helpers.createCardElement({ type: 'entities', entities: [] });
+    await (
+      entitiesCard.constructor as LovelaceCardConstructor & { getConfigElement(): Promise<LovelaceCardEditor> }
+    ).getConfigElement();
 
     await import('./editor.js');
     return document.createElement(EDITOR_ELEMENT_NAME) as LovelaceCardEditor;
@@ -104,6 +101,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
       if (typeof station !== 'string' && (station as { logo?: string }).logo) {
         stations[deviceId].logo = (station as { logo: string }).logo;
+      }
+
+      if (typeof station !== 'string' && (station as { name?: string }).name) {
+        stations[deviceId].name = (station as { name: string }).name;
       }
 
       deviceEntities.forEach((entity) => {
@@ -274,7 +275,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const device = this.hass.devices[stationId];
 
             const stationName =
-              device?.name_by_user || device?.name || attributes.station_name || attributes.friendly_name;
+              station.name ||
+              device?.name_by_user ||
+              device?.name ||
+              attributes.station_name ||
+              attributes.friendly_name;
 
             const capitalize = (str: string): string =>
               str ? str.toLowerCase().replace(/(?:^|\s|["'([{]|-)+\S/g, (match) => match.toUpperCase()) : '';

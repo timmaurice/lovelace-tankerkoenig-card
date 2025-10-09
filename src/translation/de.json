@@ -24,6 +24,7 @@
     "add_station": "Tankstelle hinzufügen",
     "customize": "Anpassen",
     "remove": "Entfernen",
+    "station_name": "Stationsname (Optional)",
     "logo_url": "Logo-URL (Optional)",
     "logo_url_placeholder": "Pfad zu einem benutzerdefinierten Logo",
     "save": "Speichern",

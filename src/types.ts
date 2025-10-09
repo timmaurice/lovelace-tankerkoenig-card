@@ -67,16 +67,17 @@ export interface LovelaceCardEditor extends HTMLElement {
   setConfig(config: LovelaceCardConfig): void;
 }
 
-export type StationConfig = string | { device: string; logo?: string };
+export type StationConfig = string | { device: string; logo?: string; name?: string };
 
 export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   title?: string;
   stations: StationConfig[];
   show_address?: boolean;
   show_last_updated?: boolean;
+  show_price_changes?: boolean;
   fuel_types?: ('e5' | 'e10' | 'diesel')[];
   sort_by?: 'e5' | 'e10' | 'diesel' | 'none';
-  hide_unavailable_fuel?: boolean;
+  hide_unavailable_stations?: boolean;
   show_only_cheapest?: boolean;
   logo_url_placeholder?: string; // Add this for the placeholder text
 }

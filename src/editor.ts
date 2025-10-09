@@ -1,6 +1,6 @@
 import { LitElement, html, css, TemplateResult, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
+import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
 import { fireEvent, getLogoUrl } from './utils';
 import editorStyles from './styles/editor.styles.scss';
@@ -21,6 +21,7 @@ const STATIONS_SCHEMA = [
 interface DialogParams {
   index: number;
   deviceId: string;
+  station: StationConfig;
 }
 
 interface HaDialog extends HTMLElement {
@@ -34,6 +35,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _config!: TankerkoenigCardConfig;
   @state() private _dialogParams: Partial<DialogParams> = {};
   @state() private _customizeInputValue = '';
+  @state() private _customizeNameInputValue = '';
   @state() private _selectedTab = 0;
 
   public setConfig(config: TankerkoenigCardConfig): void {
@@ -154,13 +156,14 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <div class="group-header">${localize(this.hass, 'component.tankerkoenig-card.editor.stations')}</div>
             <!-- Tabs -->
             <div class="tabs">
-              <ha-tab class=${this._selectedTab === 0 ? 'active' : ''} @click=${() => (this._selectedTab = 0)}
-                >${localize(this.hass, 'component.tankerkoenig-card.editor.tab_select')}</ha-tab
-              >
-              <ha-tab class=${this._selectedTab === 1 ? 'active' : ''} @click=${() => (this._selectedTab = 1)}
-                >${localize(this.hass, 'component.tankerkoenig-card.editor.tab_customize')}</ha-tab
-              >
+              <div class="tab ${this._selectedTab === 0 ? 'active' : ''}" @click=${() => (this._selectedTab = 0)}>
+                ${localize(this.hass, 'component.tankerkoenig-card.editor.tab_select')}
+              </div>
+              <div class="tab ${this._selectedTab === 1 ? 'active' : ''}" @click=${() => (this._selectedTab = 1)}>
+                ${localize(this.hass, 'component.tankerkoenig-card.editor.tab_customize')}
+              </div>
             </div>
+
             <div class="tab-content">
               ${this._selectedTab === 0
                 ? html` <ha-form
@@ -198,8 +201,9 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   private _renderStation(station: StationConfig, index: number): TemplateResult {
     const deviceId = typeof station === 'string' ? station : station.device;
     const customLogo = typeof station === 'object' ? station.logo : undefined;
+    const customName = typeof station === 'object' ? station.name : undefined;
     const device = this.hass.devices[deviceId];
-    const stationName = device?.name_by_user || device?.name || `Station ${index + 1}`;
+    const stationName = customName || device?.name_by_user || device?.name || `Station ${index + 1}`;
 
     const brand = this._getBrandFromDevice(deviceId);
     const defaultLogo = getLogoUrl(brand);
@@ -231,9 +235,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   private _showCustomizeDialog(station: StationConfig, index: number): void {
     console.log('[Tankerkoenig Editor] Firing show-dialog for CustomizeDialog');
     const deviceId = typeof station === 'string' ? station : station.device;
-    this._customizeInputValue = typeof station === 'object' ? station.logo || '' : '';
+    this._customizeInputValue = (typeof station === 'object' && station.logo) || '';
+    this._customizeNameInputValue = (typeof station === 'object' && station.name) || '';
     this._dialogParams = {
       index,
+      station,
       deviceId,
     };
     this.shadowRoot?.querySelector<HaDialog>('#customize-dialog')?.show();
@@ -243,7 +249,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     // Find an entity for this device that is likely to have the brand attribute.
     // Fuel price sensors are the most reliable source.
     const entityForDevice = Object.values(this.hass.states).find(
-      (e) =>
+      (e: HassEntity) =>
         this.hass.entities[e.entity_id]?.device_id === deviceId &&
         ['e5', 'e10', 'diesel'].includes(e.attributes.fuel_type as string),
     );
@@ -257,36 +263,52 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       <ha-dialog
         id="customize-dialog"
         .heading=${localize(this.hass, 'component.tankerkoenig-card.editor.customize')}
-        @closed=${(e: Event) => {
-          if ((e.target as HaDialog).closingReason !== 'primary') this._customizeInputValue = '';
+        @closed=${(e: CustomEvent) => {
+          if (e.detail.action === 'confirm') {
+            this._confirmCustomize();
+          } else {
+            this._customizeInputValue = '';
+            this._customizeNameInputValue = '';
+          }
         }}
       >
-        <ha-textfield
-          .label=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url')}
-          .placeholder=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url_placeholder')}
-          .value=${this._customizeInputValue}
-          @input=${(e: Event) => (this._customizeInputValue = (e.target as HTMLInputElement).value)}
-        ></ha-textfield>
-        <mwc-button dialogAction="primary" slot="primaryAction" @click=${this._confirmCustomize}>
+        <div>
+          <ha-textfield
+            .label=${localize(this.hass, 'component.tankerkoenig-card.editor.station_name')}
+            .value=${this._customizeNameInputValue}
+            @input=${(e: Event) => (this._customizeNameInputValue = (e.target as HTMLInputElement).value)}
+          ></ha-textfield>
+          <ha-textfield
+            .label=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url')}
+            .placeholder=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url_placeholder')}
+            .value=${this._customizeInputValue}
+            @input=${(e: Event) => (this._customizeInputValue = (e.target as HTMLInputElement).value)}
+          ></ha-textfield>
+        </div>
+        <button slot="primaryAction" dialogAction="confirm">
           ${localize(this.hass, 'component.tankerkoenig-card.editor.save')}
-        </mwc-button>
-        <mwc-button dialogAction="cancel" slot="secondaryAction">
+        </button>
+        <button slot="secondaryAction" dialogAction="cancel">
           ${localize(this.hass, 'component.tankerkoenig-card.editor.cancel')}
-        </mwc-button>
+        </button>
       </ha-dialog>
     `;
   }
 
   private _confirmCustomize(): void {
-    const { index, deviceId } = this._dialogParams;
-    const value = this._customizeInputValue;
+    const { index, deviceId, station } = this._dialogParams;
+    const logo = this._customizeInputValue;
+    const name = this._customizeNameInputValue;
 
-    if (index === undefined || deviceId === undefined) {
+    if (index === undefined || deviceId === undefined || station === undefined) {
       return;
     }
 
-    if (value) {
-      this._updateStation(index, { device: deviceId, logo: value });
+    if (name || logo) {
+      const newStationConf: { device: string; name?: string; logo?: string } = { device: deviceId };
+      if (name) newStationConf.name = name;
+      if (logo) newStationConf.logo = logo;
+      this._updateStation(index, newStationConf);
     } else {
       // If the value is cleared, revert to the simple device ID string
       this._updateStation(index, deviceId);
