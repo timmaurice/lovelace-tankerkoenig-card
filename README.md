@@ -83,6 +83,7 @@ Some of the supported brands include:
 - HEM
 - Hornbach
 - Jet
+- Joiss
 - Minera / Minera Automatenstation
 - MOL
 - Mr.Wash
