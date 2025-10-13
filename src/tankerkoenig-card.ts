@@ -1,5 +1,6 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { localize } from './localize';
@@ -338,11 +339,17 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       superPrice = priceParts[1].substring(2, 3);
                     }
 
+                    const priceStyle = {
+                      'background-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
+                      color: (this._config.price_font_color as string) || 'var(--primary-text-color)',
+                    };
+
                     const priceChangeIndicator =
                       this._config.show_price_changes && !isUnavailable ? this._priceChanges[entityId] || '' : '';
 
                     return html`<div
                       class="price-container"
+                      style=${styleMap(priceStyle)}
                       @click=${() => this._handleMoreInfo(entityId)}
                       tabindex="0"
                     >

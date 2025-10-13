@@ -85,6 +85,27 @@ describe('TankerkoenigCard', () => {
   let config: TankerkoenigCardConfig;
   const fireEventSpy = vi.spyOn(utils, 'fireEvent');
 
+  /**
+   * Helper function to set up the card element with a given configuration and mock stations.
+   * @param configUpdates - Partial configuration to apply.
+   * @param stations - An array of mock station objects.
+   */
+  const setupCard = async (
+    configUpdates: Partial<TankerkoenigCardConfig>,
+    ...stations: ReturnType<typeof createMockStation>[]
+  ) => {
+    Object.assign(config, configUpdates);
+    if (!configUpdates.stations) {
+      config.stations = stations.map((s) => s.device_id);
+    }
+    hass.entities = stations.reduce((acc, s) => ({ ...acc, ...s.entities }), {});
+    hass.states = stations.reduce((acc, s) => ({ ...acc, ...s.states }), {});
+    hass.devices = stations.reduce((acc, s) => ({ ...acc, ...s.devices }), {});
+    element.hass = hass;
+    element.setConfig(config);
+    await element.updateComplete;
+  };
+
   beforeEach(() => {
     hass = {
       localize: (key: string) => key,
@@ -129,14 +150,7 @@ describe('TankerkoenigCard', () => {
   describe('Rendering', () => {
     it('should render a title if provided', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
-      config.stations = [station.device_id];
-      config.title = 'Fuel Prices';
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ title: 'Fuel Prices' }, station);
 
       const card = element.shadowRoot?.querySelector<HaCard>('ha-card');
       expect(card?.header).toBe('Fuel Prices');
@@ -148,14 +162,7 @@ describe('TankerkoenigCard', () => {
         e10: '1.799',
         diesel: '1.699',
       });
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({}, station);
 
       const stationEl = element.shadowRoot?.querySelector('.station');
       expect(stationEl).not.toBeNull();
@@ -178,15 +185,7 @@ describe('TankerkoenigCard', () => {
   describe('Display Options', () => {
     it('should show address when show_address is true', async () => {
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
-      config.show_address = true;
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ show_address: true }, station);
 
       const addressEl = element.shadowRoot?.querySelector('.address');
       expect(addressEl).not.toBeNull();
@@ -195,15 +194,7 @@ describe('TankerkoenigCard', () => {
 
     it('should hide address when show_address is false', async () => {
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
-      config.show_address = false;
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ show_address: false }, station);
 
       const addressEl = element.shadowRoot?.querySelector('.address');
       expect(addressEl).toBeNull();
@@ -211,33 +202,42 @@ describe('TankerkoenigCard', () => {
 
     it('should show last updated when show_last_updated is true', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
-      config.show_last_updated = true;
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ show_last_updated: true }, station);
 
       const lastUpdatedEl = element.shadowRoot?.querySelector('.last-updated');
       expect(lastUpdatedEl).not.toBeNull();
+    });
+
+    it('should apply custom colors for price background and font', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard(
+        { price_bg_color: 'rgb(255, 0, 0)', price_font_color: 'rgb(0, 0, 255)' }, // red bg, blue font
+        station,
+      );
+
+      const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
+      expect(priceContainer).not.toBeNull();
+
+      expect(priceContainer?.style.backgroundColor).toBe('rgb(255, 0, 0)');
+      expect(priceContainer?.style.color).toBe('rgb(0, 0, 255)');
+    });
+
+    it('should apply custom RGBA colors for price background', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({ price_bg_color: 'rgba(255, 0, 0, 0.5)' }, station); // red with 50% transparency
+
+      const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
+      expect(priceContainer).not.toBeNull();
+
+      // JSDOM converts rgba to rgb if alpha is 1, but should preserve it if it's not
+      expect(priceContainer?.style.backgroundColor).toBe('rgba(255, 0, 0, 0.5)');
     });
   });
 
   describe('Sorting and Filtering', () => {
     it('should sort fuel types based on configuration', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.799', diesel: '1.699' });
-      config.fuel_types = ['diesel', 'e10', 'e5'];
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ fuel_types: ['diesel', 'e10', 'e5'] }, station);
 
       const prices = element.shadowRoot?.querySelectorAll('.fuel-type');
       expect(prices?.[0].textContent).toBe('Diesel');
@@ -247,15 +247,7 @@ describe('TankerkoenigCard', () => {
 
     it('should hide unavailable stations when configured', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'off');
-      config.hide_unavailable_stations = true;
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ hide_unavailable_stations: true }, station);
 
       const stations = element.shadowRoot?.querySelectorAll('.station');
       expect(stations?.length).toBe(0);
@@ -265,15 +257,7 @@ describe('TankerkoenigCard', () => {
       const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
       const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
 
-      config.stations = [station1.device_id, station2.device_id];
-      config.sort_by = 'e10';
-      hass.entities = { ...station1.entities, ...station2.entities };
-      hass.states = { ...station1.states, ...station2.states };
-      hass.devices = { ...station1.devices, ...station2.devices };
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ sort_by: 'e10' }, station1, station2);
 
       const stationNames = element.shadowRoot?.querySelectorAll('.station-name');
       expect(stationNames?.[0].textContent).toBe('Station 2');
@@ -285,16 +269,7 @@ describe('TankerkoenigCard', () => {
         const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
         const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
 
-        config.stations = [station1.device_id, station2.device_id];
-        config.sort_by = 'e10';
-        config.show_only_cheapest = true;
-        hass.entities = { ...station1.entities, ...station2.entities };
-        hass.states = { ...station1.states, ...station2.states };
-        hass.devices = { ...station1.devices, ...station2.devices };
-
-        element.hass = hass;
-        element.setConfig(config);
-        await element.updateComplete;
+        await setupCard({ sort_by: 'e10', show_only_cheapest: true }, station1, station2);
 
         const stationEls = element.shadowRoot?.querySelectorAll('.station');
         expect(stationEls?.length).toBe(1);
@@ -307,16 +282,7 @@ describe('TankerkoenigCard', () => {
         const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
         const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.70' });
 
-        config.stations = [station1.device_id, station2.device_id, station3.device_id];
-        config.sort_by = 'e10';
-        config.show_only_cheapest = true;
-        hass.entities = { ...station1.entities, ...station2.entities, ...station3.entities };
-        hass.states = { ...station1.states, ...station2.states, ...station3.states };
-        hass.devices = { ...station1.devices, ...station2.devices, ...station3.devices };
-
-        element.hass = hass;
-        element.setConfig(config);
-        await element.updateComplete;
+        await setupCard({ sort_by: 'e10', show_only_cheapest: true }, station1, station2, station3);
 
         const stationEls = element.shadowRoot?.querySelectorAll('.station');
         expect(stationEls?.length).toBe(2);
@@ -326,15 +292,7 @@ describe('TankerkoenigCard', () => {
         const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
         const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
 
-        config.stations = [station1.device_id, station2.device_id];
-        config.sort_by = 'none';
-        config.show_only_cheapest = true;
-        hass.entities = { ...station1.entities, ...station2.entities };
-        hass.states = { ...station1.states, ...station2.states };
-        hass.devices = { ...station1.devices, ...station2.devices };
-        element.hass = hass;
-        element.setConfig(config);
-        await element.updateComplete;
+        await setupCard({ sort_by: 'none', show_only_cheapest: true }, station1, station2);
 
         expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(2);
       });
@@ -344,10 +302,7 @@ describe('TankerkoenigCard', () => {
   describe('Price Indicators and Data States', () => {
     it('should show price up indicator when price has risen', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.829' });
-      config.stations = [station.device_id];
-      config.show_price_changes = true;
-
-      element.setConfig(config);
+      await setupCard({ show_price_changes: true }, station);
 
       (hass.callWS as Mock).mockResolvedValue({
         'sensor.aral_e5': [
@@ -355,11 +310,7 @@ describe('TankerkoenigCard', () => {
           { s: '1.829', lu: Date.now() },
         ],
       });
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      await element['_fetchPriceChanges']();
+      await element['_fetchPriceChanges'](); // Manually trigger as it's called on firstUpdated
       await element.updateComplete;
 
       const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
@@ -368,10 +319,7 @@ describe('TankerkoenigCard', () => {
 
     it('should show price down indicator when price has fallen', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
-      config.stations = [station.device_id];
-      config.show_price_changes = true;
-
-      element.setConfig(config);
+      await setupCard({ show_price_changes: true }, station);
 
       (hass.callWS as Mock).mockResolvedValue({
         'sensor.aral_e5': [
@@ -379,11 +327,7 @@ describe('TankerkoenigCard', () => {
           { s: '1.809', lu: Date.now() },
         ],
       });
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      await element['_fetchPriceChanges']();
+      await element['_fetchPriceChanges'](); // Manually trigger
       await element.updateComplete;
 
       const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
@@ -392,15 +336,7 @@ describe('TankerkoenigCard', () => {
 
     it('should display placeholder for unavailable price', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: 'unavailable' });
-      config.stations = [station.device_id];
-      config.fuel_types = ['e10', 'e5']; // Set explicit order for test predictability
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ fuel_types: ['e10', 'e5'] }, station);
 
       const priceValues = element.shadowRoot?.querySelectorAll('.price');
       // e10 is unavailable
@@ -413,13 +349,7 @@ describe('TankerkoenigCard', () => {
   describe('Interactions', () => {
     it('should fire hass-more-info event on click', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({}, station);
 
       const priceEl = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
       priceEl?.click();
@@ -431,13 +361,7 @@ describe('TankerkoenigCard', () => {
   describe('Custom Logo', () => {
     it('should use the default logo if no custom logo is provided', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
-      config.stations = [station.device_id];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({}, station);
 
       const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
       expect(logo?.src).toContain('aral.png');
@@ -446,13 +370,7 @@ describe('TankerkoenigCard', () => {
     it('should use the custom logo when provided in the configuration', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
       const customLogoUrl = 'https://example.com/my-custom-logo.png';
-      config.stations = [{ device: station.device_id, logo: customLogoUrl }];
-      hass.entities = station.entities;
-      hass.states = station.states;
-      hass.devices = station.devices;
-      element.hass = hass;
-      element.setConfig(config);
-      await element.updateComplete;
+      await setupCard({ stations: [{ device: station.device_id, logo: customLogoUrl }] }, station);
 
       const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
       expect(logo?.src).toBe(customLogoUrl);

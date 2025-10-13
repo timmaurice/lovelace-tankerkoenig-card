@@ -1,9 +1,15 @@
 import { LitElement, html, css, TemplateResult, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
 import { fireEvent, getLogoUrl } from './utils';
 import editorStyles from './styles/editor.styles.scss';
+
+// Conditionally define the rgba-string-color-picker to avoid registration conflicts when another card also uses it.
+if (!window.customElements.get('rgba-string-color-picker')) {
+  window.customElements.define('rgba-string-color-picker', class extends RgbaStringBase {});
+}
 
 const GENERAL_SCHEMA = [{ name: 'title', selector: { text: {} } }];
 const STATIONS_SCHEMA = [
@@ -37,6 +43,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _customizeInputValue = '';
   @state() private _customizeNameInputValue = '';
   @state() private _selectedTab = 0;
+  @state() private _activeColorPicker: string | null = null;
 
   public setConfig(config: TankerkoenigCardConfig): void {
     this._config = config;
@@ -69,6 +76,37 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     stations.splice(index, 1);
     const newConfig = { ...this._config, stations };
     fireEvent(this, 'config-changed', { config: newConfig });
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    document.addEventListener('mousedown', this._handleOutsideClick);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener('mousedown', this._handleOutsideClick);
+  }
+
+  private _handleOutsideClick = (ev: MouseEvent): void => {
+    if (!this._activeColorPicker) return;
+
+    const target = ev.composedPath()[0] as HTMLElement;
+
+    // If the click was on any trigger or inside any popup, do nothing.
+    if (target.closest('.color-input-wrapper') || target.closest('.color-picker-popup')) {
+      return;
+    }
+
+    // Otherwise, the click was outside, so close the picker.
+    this._closeActiveColorPicker();
+  };
+
+  private _closeActiveColorPicker(): void {
+    if (!this._activeColorPicker) return;
+    const popups = this.shadowRoot?.querySelectorAll<HTMLElement>('.color-picker-popup');
+    popups?.forEach((p) => (p.style.display = 'none'));
+    this._activeColorPicker = null;
   }
 
   protected render(): TemplateResult {
@@ -190,12 +228,74 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                 localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
               @value-changed=${this._valueChanged}
             ></ha-form>
+            <div class="row">
+              ${this._renderColorPicker(
+                'price_bg_color',
+                localize(this.hass, 'component.tankerkoenig-card.editor.price_bg_color'),
+                (this._config.price_bg_color as string) || 'var(--divider-color)',
+              )}
+              ${this._renderColorPicker(
+                'price_font_color',
+                localize(this.hass, 'component.tankerkoenig-card.editor.price_font_color'),
+                (this._config.price_font_color as string) || 'var(--primary-text-color)',
+              )}
+            </div>
           </div>
         </div>
 
         ${this._renderCustomizeDialog()}
       </ha-card>
     `;
+  }
+
+  private _renderColorPicker(configValue: keyof TankerkoenigCardConfig, label: string, color: string): TemplateResult {
+    return html` <div class="color-input-wrapper">
+      <ha-textfield
+        .label=${label}
+        .value=${this._config[configValue] || ''}
+        .configValue=${configValue as string}
+        @input=${(e: Event) => {
+          const newConfig = { ...this._config, [configValue]: (e.target as HTMLInputElement).value };
+          fireEvent(this, 'config-changed', { config: newConfig });
+        }}
+      ></ha-textfield>
+      <div
+        class="color-preview"
+        style="background-color: ${color}"
+        @click=${(e: MouseEvent) => this._toggleColorPicker(e, String(configValue))}
+      ></div>
+      <div
+        class="color-picker-popup"
+        data-picker-id=${configValue}
+        @mousedown=${(e: MouseEvent) => e.stopPropagation()}
+      >
+        <rgba-string-color-picker
+          .color=${color}
+          .configValue=${configValue as string}
+          @color-changed=${(ev: CustomEvent) => {
+            const newConfig = { ...this._config, [configValue]: ev.detail.value };
+            fireEvent(this, 'config-changed', { config: newConfig });
+          }}
+        ></rgba-string-color-picker>
+      </div>
+    </div>`;
+  }
+
+  private _toggleColorPicker(ev: MouseEvent, pickerId: string): void {
+    ev.stopPropagation();
+    const targetPopup = this.shadowRoot?.querySelector<HTMLElement>(
+      `.color-picker-popup[data-picker-id="${pickerId}"]`,
+    );
+    if (!targetPopup) return;
+
+    const isVisible = this._activeColorPicker === pickerId;
+
+    this._closeActiveColorPicker();
+
+    if (!isVisible) {
+      targetPopup.style.display = 'block';
+      this._activeColorPicker = pickerId;
+    }
   }
 
   private _renderStation(station: StationConfig, index: number): TemplateResult {
@@ -233,7 +333,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   }
 
   private _showCustomizeDialog(station: StationConfig, index: number): void {
-    console.log('[Tankerkoenig Editor] Firing show-dialog for CustomizeDialog');
     const deviceId = typeof station === 'string' ? station : station.device;
     this._customizeInputValue = (typeof station === 'object' && station.logo) || '';
     this._customizeNameInputValue = (typeof station === 'object' && station.name) || '';

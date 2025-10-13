@@ -1,7 +1,37 @@
+@use './color-picker';
+
+@include color-picker.color-picker-styles;
+
 .card-config {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--bge-editor-spacing, 12px);
+}
+
+.color-picker-popup {
+  display: none;
+  /* Hidden by default, controlled by JS */
+}
+
+.color-input-wrapper {
+  align-items: center;
+  display: flex;
+  gap: var(--bge-editor-spacing);
+
+  ha-textfield {
+    flex-grow: 1;
+    margin-right: calc(var(--bge-editor-spacing, 12px) / 2);
+  }
+}
+
+.color-preview {
+  border: 1px solid var(--divider-color);
+  border-radius: 4px;
+  box-sizing: border-box;
+  cursor: pointer;
+  flex-shrink: 0;
+  height: 28px;
+  width: 28px;
 }
 
 .group {

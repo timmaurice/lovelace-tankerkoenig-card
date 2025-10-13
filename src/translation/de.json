@@ -13,6 +13,8 @@
     "hide_unavailable_stations": "Nicht verfügbare Tankstellen ausblenden",
     "sort_by": "Tankstellen nach Preis sortieren",
     "show_only_cheapest": "Nur die günstigste Tankstelle anzeigen",
+    "price_bg_color": "Preis Hintergrundfarbe",
+    "price_font_color": "Preis Schriftfarbe",
     "fuel_type_options": {
       "e5": "Super E5",
       "e10": "Super E10",
