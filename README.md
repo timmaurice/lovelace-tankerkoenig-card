@@ -71,7 +71,7 @@ The card automatically displays logos for many gas station brands. The logo is d
 Some of the supported brands include:
 
 - Agip eni
-- Aral
+- Aral _(incl. Jantzon)_
 - Avia
 - Bell Oil
 - BFT
