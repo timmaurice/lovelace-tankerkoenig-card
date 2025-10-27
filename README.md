@@ -118,7 +118,9 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `type`                      | string                              | **Required**                | `custom:tankerkoenig-card`                                                                                        |
 | `title`                     | string                              | `(none)`                    | The title of the card.                                                                                            |
 | `stations`                  | list (string or object)             | **Required**                | A list of device IDs. To set a custom name or logo, use an object: `{ device: '...', name: '...', logo: '...' }`. |
-| `show_address`              | boolean                             | `false`                     | Show the address of the station.                                                                                  |
+| `show_street`               | boolean                             | `true`                      | Show the street and house number of the station.                                                                  |
+| `show_postcode`             | boolean                             | `true`                      | Show the postcode of the station.                                                                                 |
+| `show_city`                 | boolean                             | `true`                      | Show the city of the station.                                                                                     |
 | `show_last_updated`         | boolean                             | `false`                     | Show the last updated timestamp for the station.                                                                  |
 | `show_price_changes`        | boolean                             | `false`                     | Show an indicator for price increases or decreases.                                                               |
 | `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']`   | The order in which to display the fuel types.                                                                     |
@@ -127,6 +129,7 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `show_only_cheapest`        | boolean                             | `false`                     | Show only the cheapest station. Requires `sort_by` to be set to a fuel type.                                      |
 | `price_bg_color`            | string                              | `var(--divider-color)`      | The background color of the price display.                                                                        |
 | `price_font_color`          | string                              | `var(--primary-text-color)` | The font color of the price display.                                                                              |
+| `font_scale`                | number                              | `100`                       | A percentage to scale the font size of the price and fuel type (e.g., `80` for 80%).                              |
 
 ### Station Object Parameters
 
@@ -141,7 +144,9 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 ```yaml
 type: custom:tankerkoenig-card
 title: Fuel Prices
-show_address: false
+show_street: true
+show_postcode: true
+show_city: true
 show_last_updated: true
 show_price_changes: true
 sort_by: e10

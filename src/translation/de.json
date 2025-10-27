@@ -2,17 +2,23 @@
   "editor": {
     "groups": {
       "core": "Grundeinstellungen",
-      "display": "Anzeige"
+      "display": "Anzeige",
+      "address": "Adresseinstellungen",
+      "font": "Schriftarteinstellungen",
+      "color": "Farbeinstellungen"
     },
     "title": "Titel (Optional)",
     "stations": "Tankstellen",
-    "show_address": "Adresse anzeigen",
+    "show_street": "Straße anzeigen",
+    "show_postcode": "Postleitzahl anzeigen",
+    "show_city": "Stadt anzeigen",
     "show_last_updated": "Zeitstempel der letzten Aktualisierung anzeigen",
     "show_price_changes": "Preisänderungen anzeigen",
     "fuel_types": "Reihenfolge der Kraftstoffarten",
     "hide_unavailable_stations": "Nicht verfügbare Tankstellen ausblenden",
     "sort_by": "Tankstellen nach Preis sortieren",
     "show_only_cheapest": "Nur die günstigste Tankstelle anzeigen",
+    "font_scale": "Schriftgröße skalieren",
     "price_bg_color": "Preis Hintergrundfarbe",
     "price_font_color": "Preis Schriftfarbe",
     "fuel_type_options": {
@@ -32,7 +38,9 @@
     "save": "Speichern",
     "cancel": "Abbrechen",
     "tab_select": "Auswählen",
-    "tab_customize": "Anpassen"
+    "tab_customize": "Anpassen",
+    "show_address_info": "Adressanzeige",
+    "show_address_detail": "Jeder Schalter steuert die Sichtbarkeit eines Teils der Adresse. Wenn keiner ausgewählt ist, wird die Adresse ausgeblendet."
   },
   "card": {
     "station_not_found": "Tankstelle nicht gefunden: {station}"

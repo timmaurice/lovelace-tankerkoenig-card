@@ -70,6 +70,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     return {
       title: 'Tankerkönig',
       stations: [],
+      show_street: true,
+      show_postcode: true,
+      show_city: true,
     };
   }
 
@@ -285,18 +288,27 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const capitalize = (str: string): string =>
               str ? str.toLowerCase().replace(/(?:^|\s|["'([{]|-)+\S/g, (match) => match.toUpperCase()) : '';
 
-            const houseNumber = attributes.house_number as string;
-            const streetPart = [
-              capitalize((attributes.street as string) || ''),
-              houseNumber && houseNumber.toLowerCase() !== 'none' ? houseNumber.trim() : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-            const cityPart = [(attributes.postcode as number) || '', capitalize((attributes.city as string) || '')]
-              .filter(Boolean)
-              .join(' ');
+            const showStreet = this._config.show_street !== false;
+            const showPostcode = this._config.show_postcode !== false;
+            const showCity = this._config.show_city !== false;
 
-            const address = [streetPart, cityPart].filter(Boolean).join(', ');
+            const addressParts: string[] = [];
+            if (showStreet) {
+              const street = capitalize((attributes.street as string) || '');
+              const houseNumber = attributes.house_number as string;
+              const streetPart = [street, houseNumber && houseNumber.toLowerCase() !== 'none' ? houseNumber.trim() : '']
+                .filter(Boolean)
+                .join(' ');
+              if (streetPart) addressParts.push(streetPart);
+            }
+
+            const cityPart: string[] = [];
+            if (showPostcode) cityPart.push(String(attributes.postcode as number) || '');
+            if (showCity) cityPart.push(capitalize((attributes.city as string) || ''));
+            const cityPartStr = cityPart.filter(Boolean).join(' ');
+            if (cityPartStr) addressParts.push(cityPartStr);
+
+            const address = addressParts.join(', ');
 
             return html`
               <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
@@ -312,9 +324,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   <div class="row-1">
                     <span class="station-name">${stationName}</span>
                   </div>
-                  ${this._config.show_address
-                    ? html`<div class="row-2"><span class="address">${address}</span></div>`
-                    : ''}
+                  ${address ? html`<div class="row-2"><span class="address">${address}</span></div>` : ''}
                   ${this._config.show_last_updated
                     ? html`<div class="row-3">
                         <span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>
@@ -339,9 +349,19 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       superPrice = priceParts[1].substring(2, 3);
                     }
 
-                    const priceStyle = {
+                    const containerStyle = {
                       'background-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
                       color: (this._config.price_font_color as string) || 'var(--primary-text-color)',
+                    };
+
+                    const scale = (this._config.font_scale || 100) / 100;
+
+                    const priceStyle = {
+                      'font-size': `${1.5 * scale}em`,
+                    };
+
+                    const fuelTypeStyle = {
+                      'font-size': `${1 * scale}em`,
                     };
 
                     const priceChangeIndicator =
@@ -349,12 +369,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
                     return html`<div
                       class="price-container"
-                      style=${styleMap(priceStyle)}
+                      style=${styleMap(containerStyle)}
                       @click=${() => this._handleMoreInfo(entityId)}
                       tabindex="0"
                     >
                       <div class="fuel-header">
-                        <span class="fuel-type">${fuelTypeMap[fuel as keyof typeof fuelTypeMap].label}</span>
+                        <span class="fuel-type" style=${styleMap(fuelTypeStyle)}
+                          >${fuelTypeMap[fuel as keyof typeof fuelTypeMap].label}</span
+                        >
                         <span
                           class="price-change-indicator ${classMap({
                             'price-up': priceChangeIndicator === 'up',
@@ -362,9 +384,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                           })}"
                         ></span>
                       </div>
-                      <span class="price"
-                        >${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span
-                      >
+                      <span class="price" style=${styleMap(priceStyle)}>${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span>
                     </div>`;
                   })}
                 </div>

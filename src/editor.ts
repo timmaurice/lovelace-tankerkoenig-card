@@ -35,6 +35,19 @@ interface HaDialog extends HTMLElement {
   closingReason?: string;
 }
 
+if (!window.customElements.get('ha-expansion-panel')) {
+  window.customElements.define(
+    'ha-expansion-panel',
+    class extends LitElement {
+      static styles = css`
+        ha-expansion-panel {
+          display: block;
+        }
+      `;
+    },
+  );
+}
+
 @customElement('tankerkoenig-card-editor')
 export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass!: HomeAssistant;
@@ -44,6 +57,9 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _customizeNameInputValue = '';
   @state() private _selectedTab = 0;
   @state() private _activeColorPicker: string | null = null;
+  @state() private _addressExpanded = false;
+  @state() private _fontExpanded = false;
+  @state() private _colorExpanded = false;
 
   public setConfig(config: TankerkoenigCardConfig): void {
     this._config = config;
@@ -52,14 +68,18 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   private _valueChanged(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }): void {
     if (!this.hass || !this._config) return;
 
-    const newStations = ev.detail.value.stations || [];
+    const updatedConfig: Partial<TankerkoenigCardConfig> = { ...ev.detail.value };
 
-    // Preserve custom logos when stations are re-ordered or removed via the selector
-    const stations = newStations.map((deviceId) => {
-      return this._config.stations.find((s) => (typeof s === 'string' ? s : s.device) === deviceId) || deviceId;
-    });
-    const newConfig = { ...this._config, ...ev.detail.value, stations };
-    fireEvent(this, 'config-changed', { config: newConfig });
+    // Special handling for stations to preserve custom logos/names when re-ordering or removing via the selector
+    // This block only executes if the 'stations' property is explicitly part of the change event.
+    if (ev.detail.value.stations !== undefined) {
+      const newStations = ev.detail.value.stations || [];
+      updatedConfig.stations = newStations.map((deviceId) => {
+        return this._config.stations.find((s) => (typeof s === 'string' ? s : s.device) === deviceId) || deviceId;
+      });
+    }
+
+    fireEvent(this, 'config-changed', { config: { ...this._config, ...updatedConfig } });
   }
 
   private _updateStation(index: number, newStation: StationConfig): void {
@@ -115,10 +135,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     }
 
     let schema = [
-      {
-        name: 'show_address',
-        selector: { boolean: {} },
-      },
       {
         name: 'show_last_updated',
         selector: { boolean: {} },
@@ -228,18 +244,99 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                 localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
               @value-changed=${this._valueChanged}
             ></ha-form>
-            <div class="row">
-              ${this._renderColorPicker(
-                'price_bg_color',
-                localize(this.hass, 'component.tankerkoenig-card.editor.price_bg_color'),
-                (this._config.price_bg_color as string) || 'var(--divider-color)',
-              )}
-              ${this._renderColorPicker(
-                'price_font_color',
-                localize(this.hass, 'component.tankerkoenig-card.editor.price_font_color'),
-                (this._config.price_font_color as string) || 'var(--primary-text-color)',
-              )}
-            </div>
+            <ha-expansion-panel
+              .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.address')}
+              .expanded=${this._addressExpanded}
+              @click=${(e: Event) => {
+                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
+                  this._addressExpanded = !this._addressExpanded;
+                }
+              }}
+            >
+              <div class="expansion-content">
+                <ha-alert
+                  alert-type="info"
+                  .title=${localize(this.hass, 'component.tankerkoenig-card.editor.show_address_info')}
+                >
+                  ${localize(this.hass, 'component.tankerkoenig-card.editor.show_address_detail')}
+                </ha-alert>
+                <ha-form
+                  .schema=${[
+                    { name: 'show_street', selector: { boolean: {} } },
+                    { name: 'show_postcode', selector: { boolean: {} } },
+                    { name: 'show_city', selector: { boolean: {} } },
+                  ]}
+                  .hass=${this.hass}
+                  .data=${{
+                    show_street: this._config.show_street ?? true,
+                    show_postcode: this._config.show_postcode ?? true,
+                    show_city: this._config.show_city ?? true,
+                  }}
+                  .computeLabel=${(s: { name: string }) =>
+                    localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
+              </div>
+            </ha-expansion-panel>
+
+            <ha-expansion-panel
+              .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.font')}
+              .expanded=${this._fontExpanded}
+              @click=${(e: Event) => {
+                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
+                  this._fontExpanded = !this._fontExpanded;
+                }
+              }}
+            >
+              <div class="expansion-content">
+                <div class="row">
+                  <div class="font-scale-slider">
+                    <label for="font_scale"
+                      >${localize(this.hass, 'component.tankerkoenig-card.editor.font_scale')}:
+                      <span>${this._config.font_scale || 100}%</span></label
+                    >
+                    <ha-slider
+                      id="font_scale"
+                      min="70"
+                      max="120"
+                      step="1"
+                      .value=${this._config.font_scale || 100}
+                      @change=${(e: Event) => {
+                        const newConfig = {
+                          ...this._config,
+                          font_scale: parseFloat((e.target as HTMLInputElement).value),
+                        };
+                        fireEvent(this, 'config-changed', { config: newConfig });
+                      }}
+                    ></ha-slider>
+                  </div>
+                </div>
+              </div>
+            </ha-expansion-panel>
+            <ha-expansion-panel
+              .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.color')}
+              .expanded=${this._colorExpanded}
+              @click=${(e: Event) => {
+                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
+                  this._colorExpanded = !this._colorExpanded;
+                }
+              }}
+            >
+              <div class="expansion-content">
+                <div class="row">
+                  ${this._renderColorPicker(
+                    'price_bg_color',
+                    localize(this.hass, 'component.tankerkoenig-card.editor.price_bg_color'),
+                    (this._config.price_bg_color as string) || 'var(--divider-color)',
+                  )}
+                  ${this._renderColorPicker(
+                    'price_font_color',
+                    localize(this.hass, 'component.tankerkoenig-card.editor.price_font_color'),
+                    (this._config.price_font_color as string) || 'var(--primary-text-color)',
+                  )}
+                </div>
+              </div>
+            </ha-expansion-panel>
           </div>
         </div>
 

@@ -1,5 +1,4 @@
 @use './color-picker';
-
 @include color-picker.color-picker-styles;
 
 .card-config {
@@ -36,9 +35,14 @@
 
 .group {
   border: 1px solid var(--divider-color);
-  border-radius: var(--ha-card-border-radius, 4px);
-  margin-top: 8px;
+  border-radius: var(--ha-card-border-radius, 12px);
+  margin-top: 0;
   padding: 16px;
+
+  &.no-border {
+    border: none;
+    padding: 0;
+  }
 }
 
 .group-header {
@@ -158,4 +162,22 @@ ha-dialog {
       color: var(--text-primary-color);
     }
   }
+}
+
+.expansion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+ha-expansion-panel {
+  border: 1px solid var(--divider-color);
+  border-radius: var(--ha-card-border-radius, 12px);
+  margin-top: 8px;
+}
+
+.font-scale-slider {
+  display: flex;
+  flex-direction: column;
 }

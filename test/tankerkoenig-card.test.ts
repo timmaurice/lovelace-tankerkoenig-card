@@ -183,19 +183,25 @@ describe('TankerkoenigCard', () => {
   });
 
   describe('Display Options', () => {
-    it('should show address when show_address is true', async () => {
+    it('should show full address by default', async () => {
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
-      await setupCard({ show_address: true }, station);
+      await setupCard({}, station);
 
       const addressEl = element.shadowRoot?.querySelector('.address');
       expect(addressEl).not.toBeNull();
       expect(addressEl?.textContent).toBe('Musterstraße 1, 12345 Musterstadt');
     });
 
-    it('should hide address when show_address is false', async () => {
+    it('should hide parts of the address when configured', async () => {
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
-      await setupCard({ show_address: false }, station);
+      await setupCard({ show_street: false, show_postcode: true, show_city: true }, station);
+      const addressEl = element.shadowRoot?.querySelector('.address');
+      expect(addressEl?.textContent).toBe('12345 Musterstadt');
+    });
 
+    it('should hide address completely when all parts are false', async () => {
+      const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
+      await setupCard({ show_street: false, show_postcode: false, show_city: false }, station);
       const addressEl = element.shadowRoot?.querySelector('.address');
       expect(addressEl).toBeNull();
     });
