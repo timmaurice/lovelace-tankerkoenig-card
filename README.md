@@ -78,6 +78,7 @@ Some of the supported brands include:
 - citi oil
 - Classic
 - E Center
+- ELAN
 - Esso
 - Globus
 - HEM
