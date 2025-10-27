@@ -384,7 +384,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                           })}"
                         ></span>
                       </div>
-                      <span class="price" style=${styleMap(priceStyle)}>${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span>
+                      <span class="price" style=${styleMap(priceStyle)}
+                        >${mainPrice}<sup>${superPrice}</sup><span class="currency">${currency}</span></span
+                      >
                     </div>`;
                   })}
                 </div>

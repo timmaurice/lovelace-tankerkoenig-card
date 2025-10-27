@@ -98,7 +98,9 @@ const gt=1,ft=t=>(...e)=>({_$litDirective$:t,values:e});let _t=class{constructor
                           class="price-change-indicator ${$t({"price-up":"up"===u,"price-down":"down"===u})}"
                         ></span>
                       </div>
-                      <span class="price" style=${bt(h)}>${r}<sup>${a}</sup><span class="currency">${c}</span></span>
+                      <span class="price" style=${bt(h)}
+                        >${r}<sup>${a}</sup><span class="currency">${c}</span></span
+                      >
                     </div>`})}
                 </div>
               </div>
