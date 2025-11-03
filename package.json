@@ -38,7 +38,7 @@
     "rollup-plugin-lit-css": "^6.0.0",
     "sass": "^1.93.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.2",
+    "typescript-eslint": "^8.46.3",
     "vitest": "^4.0.6"
   },
   "dependencies": {
