@@ -19,6 +19,7 @@
     "hide_unavailable_stations": "Hide Unavailable Stations",
     "sort_by": "Sort Stations by Price",
     "show_only_cheapest": "Show Only Cheapest Station",
+    "show_prices_side_by_side": "Show Prices Side-by-Side",
     "font_scale": "Font Scale",
     "price_bg_color": "Price Background Color",
     "price_font_color": "Price Font Color",

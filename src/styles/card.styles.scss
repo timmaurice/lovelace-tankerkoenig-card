@@ -142,4 +142,12 @@
     flex-direction: row;
     justify-content: flex-end;
   }
+
+  .prices.prices-side-by-side {
+    flex-direction: row;
+  }
+
+  .prices.prices-side-by-side .price-container {
+    flex-direction: column;
+  }
 }

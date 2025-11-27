@@ -185,6 +185,10 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         name: 'show_only_cheapest',
         selector: { boolean: {} },
       },
+      {
+        name: 'show_prices_side_by_side',
+        selector: { boolean: {} },
+      },
     ];
 
     if (!this._config.sort_by || this._config.sort_by === 'none') {
@@ -409,7 +413,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       <div class="station-row">
         <img
           class="logo"
-          src="${customLogo || defaultLogo}"
+          src=${customLogo || defaultLogo}
           @error=${(e: Event) => ((e.target as HTMLImageElement).src = getLogoUrl())}
         />
         <span class="station-name">${stationName}</span>

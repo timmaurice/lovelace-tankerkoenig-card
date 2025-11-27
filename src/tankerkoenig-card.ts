@@ -315,8 +315,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 <div class="logo-container">
                   ${html`<img
                     class="logo"
-                    src="${station.logo || getLogoUrl(attributes.brand as string)}"
-                    alt="${attributes.brand}"
+                    src=${station.logo || getLogoUrl(attributes.brand as string)}
+                    alt=${attributes.brand}
                     @error=${(e: Event) => ((e.target as HTMLImageElement).src = getLogoUrl())}
                   />`}
                 </div>
@@ -331,7 +331,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       </div>`
                     : ''}
                 </div>
-                <div class="prices">
+                <div
+                  class="prices ${classMap({
+                    'prices-side-by-side': this._config.show_prices_side_by_side || false,
+                  })}"
+                >
                   ${fuelTypesToRender.map((fuel) => {
                     const entityId = station[fuel as keyof Station];
                     if (!entityId) return '';

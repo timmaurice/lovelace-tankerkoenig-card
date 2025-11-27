@@ -82,6 +82,7 @@ export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   sort_by?: 'e5' | 'e10' | 'diesel' | 'none';
   hide_unavailable_stations?: boolean;
   show_only_cheapest?: boolean;
+  show_prices_side_by_side?: boolean;
   font_scale?: number;
   price_bg_color?: string;
   price_font_color?: string;
