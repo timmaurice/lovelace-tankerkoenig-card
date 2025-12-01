@@ -75,6 +75,7 @@ Some of the supported brands include:
 - Avia
 - Bell Oil
 - BFT
+- Calpam
 - citi oil
 - Classic
 - E Center
@@ -82,6 +83,7 @@ Some of the supported brands include:
 - Esso
 - Globus
 - HEM
+- Hessol
 - Hornbach
 - Jet
 - Joiss
