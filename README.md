@@ -74,14 +74,16 @@ Some of the supported brands include:
 - Agip eni
 - Aral _(incl. Jantzon)_
 - Avia
+- BayWa
 - Bell Oil
 - BFT
 - Calpam
 - citi oil
 - Classic
-- E Center
+- E-Center
 - ELAN
 - Esso
+- Feneberg
 - Globus
 - HEM
 - Hessol
@@ -96,11 +98,13 @@ Some of the supported brands include:
 - OMV
 - Raiffeisen
 - RAN
+- Schindele
 - Shell
 - Star
 - Total
 - Total Energies
 - V-Markt
+- Westfalen
 
 If a logo for a specific brand is missing, the card will show a generic fallback logo. You can check the `src/gasstation_logos` directory for a full list of available logos.
 
