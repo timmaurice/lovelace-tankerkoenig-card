@@ -100,6 +100,7 @@ Some of the supported brands include:
 - RAN
 - Schindele
 - Shell
+- Sprint
 - Star
 - Total
 - Total Energies
