@@ -84,6 +84,7 @@ Some of the supported brands include:
 - ELAN
 - Esso
 - Feneberg
+- Flaeming Tank
 - Globus
 - HEM
 - Hessol
@@ -96,10 +97,13 @@ Some of the supported brands include:
 - MTB
 - OIL!
 - OMV
+- Q1
 - Raiffeisen
 - RAN
+- SB-Tank
 - Schindele
 - Shell
+- Spreves
 - Sprint
 - Star
 - Total
