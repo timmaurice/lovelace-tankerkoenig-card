@@ -186,13 +186,19 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         selector: { boolean: {} },
       },
       {
+        name: 'show_only_cheapest_count',
+        selector: { number: { min: 1, mode: 'box' } },
+      },
+      {
         name: 'show_prices_side_by_side',
         selector: { boolean: {} },
       },
     ];
 
     if (!this._config.sort_by || this._config.sort_by === 'none') {
-      schema = schema.filter((item) => item.name !== 'show_only_cheapest');
+      schema = schema.filter((item) => item.name !== 'show_only_cheapest' && item.name !== 'show_only_cheapest_count');
+    } else if (!this._config.show_only_cheapest) {
+      schema = schema.filter((item) => item.name !== 'show_only_cheapest_count');
     }
 
     return html`

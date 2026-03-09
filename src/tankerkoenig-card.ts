@@ -244,17 +244,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       });
 
       if (stationsWithPrice.length > 0) {
-        const minPrice = Math.min(
-          ...stationsWithPrice.map(([, station]) => {
-            const entityId = station[sortBy as keyof Station]!;
-            return parseFloat(this.hass.states[entityId].state);
-          }),
-        );
-
-        stationEntries = stationsWithPrice.filter(([, station]) => {
-          const entityId = station[sortBy as keyof Station]!;
-          return parseFloat(this.hass.states[entityId].state) === minPrice;
-        });
+        const count = this._config.show_only_cheapest_count || 1;
+        if (count === 1) {
+          const minPrice = Math.min(...stationsWithPrice.map(([, station]) => parseFloat(this.hass.states[station[sortBy as keyof Station]!].state)));
+          stationEntries = stationsWithPrice.filter(([, station]) => parseFloat(this.hass.states[station[sortBy as keyof Station]!].state) === minPrice);
+        } else {
+          stationEntries = stationsWithPrice.slice(0, count);
+        }
       }
     }
 
