@@ -280,8 +280,9 @@ describe('TankerkoenigCard', () => {
         const stationEls = element.shadowRoot?.querySelectorAll('.station');
         expect(stationEls?.length).toBe(1);
         const stationName = stationEls?.[0].querySelector('.station-name');
+        expect(stationName?.textContent).toBe('Station 2');
       });
- 
+
       it('should return multiple stations if they share the cheapest price', async () => {
         const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
         const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
@@ -308,7 +309,13 @@ describe('TankerkoenigCard', () => {
         const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.70' });
         const station4 = createMockStation('station4', 'Station 4', 'Brand4', { e10: '1.60' });
 
-        await setupCard({ sort_by: 'e10', show_only_cheapest: true, show_only_cheapest_count: 2 }, station1, station2, station3, station4);
+        await setupCard(
+          { sort_by: 'e10', show_only_cheapest: true, show_only_cheapest_count: 2 },
+          station1,
+          station2,
+          station3,
+          station4,
+        );
 
         const stationEls = element.shadowRoot?.querySelectorAll('.station');
         expect(stationEls?.length).toBe(2);
