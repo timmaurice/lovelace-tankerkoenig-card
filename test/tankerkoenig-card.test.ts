@@ -206,6 +206,17 @@ describe('TankerkoenigCard', () => {
       expect(addressEl).toBeNull();
     });
 
+    it('should display postcode with 5 digits even if it has a leading zero', async () => {
+      const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
+      // Inject a postcode with a leading zero (represented as 7743 in the mock data)
+      station.states['sensor.aral_e5'].attributes.postcode = 7743;
+      await setupCard({}, station);
+
+      const addressEl = element.shadowRoot?.querySelector('.address');
+      expect(addressEl).not.toBeNull();
+      expect(addressEl?.textContent).toBe('Musterstraße 1, 07743 Musterstadt');
+    });
+
     it('should show last updated when show_last_updated is true', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
       await setupCard({ show_last_updated: true }, station);

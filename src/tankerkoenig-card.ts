@@ -305,7 +305,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             }
 
             const cityPart: string[] = [];
-            if (showPostcode) cityPart.push(String(attributes.postcode as number) || '');
+            if (showPostcode) cityPart.push(String(attributes.postcode).padStart(5, '0'));
             if (showCity) cityPart.push(capitalize((attributes.city as string) || ''));
             const cityPartStr = cityPart.filter(Boolean).join(' ');
             if (cityPartStr) addressParts.push(cityPartStr);
