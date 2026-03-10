@@ -15,7 +15,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 
 - Displays prices for multiple fuel stations from the [Tankerkönig integration](https://www.home-assistant.io/integrations/tankerkoenig/).
 - Sort stations by price for a specific fuel type.
-- Show only the cheapest station based on a selected fuel type.
+- Show only the X cheapest stations based on a selected fuel type.
 - Show/hide station address and last updated timestamp.
 - Customize the order of displayed fuel types.
 - Show indicators for price increases or decreases.
@@ -139,7 +139,8 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']`   | The order in which to display the fuel types.                                                                     |
 | `hide_unavailable_stations` | boolean                             | `false`                     | Hide stations that are currently closed.                                                                          |
 | `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                    | Sort stations by the price of the selected fuel type.                                                             |
-| `show_only_cheapest`        | boolean                             | `false`                     | Show only the cheapest station. Requires `sort_by` to be set to a fuel type.                                      |
+| `show_only_cheapest`        | boolean                             | `false`                     | Show only the cheapest station(s). Requires `sort_by` to be set to a fuel type.                                   |
+| `show_only_cheapest_count`  | number                              | `1`                         | The number of cheapest stations to show when `show_only_cheapest` is enabled.                                     |
 | `show_prices_side_by_side`  | boolean                             | `false`                     | Force prices to be displayed side-by-side on mobile devices.                                                      |
 | `price_bg_color`            | string                              | `var(--divider-color)`      | The background color of the price display.                                                                        |
 | `price_font_color`          | string                              | `var(--primary-text-color)` | The font color of the price display.                                                                              |
@@ -164,6 +165,8 @@ show_city: true
 show_last_updated: true
 show_price_changes: true
 sort_by: e10
+show_only_cheapest: true
+show_only_cheapest_count: 3
 fuel_types:
   - e10
   - e5
