@@ -72,8 +72,9 @@ Some of the supported brands include:
 
 - Access
 - Agip eni
+- Allguth
 - Aral _(incl. Jantzon)_
-- Avia
+- Avia _(incl. Xpress)_
 - BayWa
 - Bell Oil
 - BFT
