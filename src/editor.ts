@@ -500,7 +500,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
           ></ha-textfield>
         </div>
         <div class="dialog-actions">
-          <button class="action-btn"
+          <button
+            class="action-btn"
             @click=${() => {
               this._isCustomizeDialogOpen = false;
               this._customizeInputValue = '';
@@ -509,7 +510,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
           >
             ${localize(this.hass, 'component.tankerkoenig-card.editor.cancel')}
           </button>
-          <button class="action-btn primary"
+          <button
+            class="action-btn primary"
             @click=${() => {
               this._confirmCustomize();
               this._isCustomizeDialogOpen = false;

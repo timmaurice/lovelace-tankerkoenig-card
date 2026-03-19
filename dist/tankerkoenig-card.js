@@ -295,12 +295,14 @@ function(t){return(e,s,i)=>((t,e,s)=>(s.configurable=!0,s.enumerable=!0,Reflect.
           ></ha-textfield>
         </div>
         <div class="dialog-actions">
-          <button class="action-btn"
+          <button
+            class="action-btn"
             @click=${()=>{this._isCustomizeDialogOpen=!1,this._customizeInputValue="",this._customizeNameInputValue=""}}
           >
             ${kt(this.hass,"component.tankerkoenig-card.editor.cancel")}
           </button>
-          <button class="action-btn primary"
+          <button
+            class="action-btn primary"
             @click=${()=>{this._confirmCustomize(),this._isCustomizeDialogOpen=!1}}
           >
             ${kt(this.hass,"component.tankerkoenig-card.editor.save")}
