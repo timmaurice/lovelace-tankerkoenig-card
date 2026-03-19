@@ -57,8 +57,29 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _colorExpanded = false;
   @state() private _isCustomizeDialogOpen = false;
 
+  @state() private _stationsData: { stations: string[] } = { stations: [] };
+  @state() private _addressData: { show_street: boolean; show_postcode: boolean; show_city: boolean } = {
+    show_street: true,
+    show_postcode: true,
+    show_city: true,
+  };
+
   public setConfig(config: TankerkoenigCardConfig): void {
     this._config = config;
+
+    const mappedStations = (config.stations || []).map((s) => (typeof s === 'string' ? s : s.device));
+    if (JSON.stringify(this._stationsData.stations) !== JSON.stringify(mappedStations)) {
+      this._stationsData = { stations: mappedStations };
+    }
+
+    const addressData = {
+      show_street: config.show_street ?? true,
+      show_postcode: config.show_postcode ?? true,
+      show_city: config.show_city ?? true,
+    };
+    if (JSON.stringify(this._addressData) !== JSON.stringify(addressData)) {
+      this._addressData = addressData;
+    }
   }
 
   private _valueChanged(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }): void {
@@ -237,9 +258,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                 ? html` <ha-form
                     .schema=${STATIONS_SCHEMA}
                     .hass=${this.hass}
-                    .data=${{
-                      stations: (this._config.stations || []).map((s) => (typeof s === 'string' ? s : s.device)),
-                    }}
+                    .data=${this._stationsData}
                     .computeLabel=${(s: { name: string }) =>
                       localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
                     @value-changed=${this._valueChanged}
@@ -281,11 +300,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                     { name: 'show_city', selector: { boolean: {} } },
                   ]}
                   .hass=${this.hass}
-                  .data=${{
-                    show_street: this._config.show_street ?? true,
-                    show_postcode: this._config.show_postcode ?? true,
-                    show_city: this._config.show_city ?? true,
-                  }}
+                  .data=${this._addressData}
                   .computeLabel=${(s: { name: string }) =>
                     localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
                   @value-changed=${this._valueChanged}
