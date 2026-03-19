@@ -30,11 +30,6 @@ interface DialogParams {
   station: StationConfig;
 }
 
-interface HaDialog extends HTMLElement {
-  show(): void;
-  closingReason?: string;
-}
-
 if (!window.customElements.get('ha-expansion-panel')) {
   window.customElements.define(
     'ha-expansion-panel',
@@ -60,6 +55,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _addressExpanded = false;
   @state() private _fontExpanded = false;
   @state() private _colorExpanded = false;
+  @state() private _isCustomizeDialogOpen = false;
 
   public setConfig(config: TankerkoenigCardConfig): void {
     this._config = config;
@@ -75,16 +71,24 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     if (ev.detail.value.stations !== undefined) {
       const newStations = ev.detail.value.stations || [];
       updatedConfig.stations = newStations.map((deviceId) => {
-        return this._config.stations.find((s) => (typeof s === 'string' ? s : s.device) === deviceId) || deviceId;
+        return (
+          (this._config.stations || []).find((s) => (typeof s === 'string' ? s : s.device) === deviceId) || deviceId
+        );
       });
     }
 
-    fireEvent(this, 'config-changed', { config: { ...this._config, ...updatedConfig } });
+    // Prevent infinite loops by checking if anything actually changed
+    const newConfig = { ...this._config, ...updatedConfig };
+    if (JSON.stringify(this._config) === JSON.stringify(newConfig)) {
+      return;
+    }
+
+    fireEvent(this, 'config-changed', { config: newConfig });
   }
 
   private _updateStation(index: number, newStation: StationConfig): void {
     if (!this._config) return;
-    const stations = [...this._config.stations];
+    const stations = [...(this._config.stations || [])];
     stations[index] = newStation;
     const newConfig = { ...this._config, stations };
     fireEvent(this, 'config-changed', { config: newConfig });
@@ -92,7 +96,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
 
   private _removeStation(index: number): void {
     if (!this._config) return;
-    const stations = [...this._config.stations];
+    const stations = [...(this._config.stations || [])];
     stations.splice(index, 1);
     const newConfig = { ...this._config, stations };
     fireEvent(this, 'config-changed', { config: newConfig });
@@ -448,7 +452,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       station,
       deviceId,
     };
-    this.shadowRoot?.querySelector<HaDialog>('#customize-dialog')?.show();
+    this._isCustomizeDialogOpen = true;
   }
 
   private _getBrandFromDevice(deviceId: string): string | undefined {
@@ -468,9 +472,13 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     return html`
       <ha-dialog
         id="customize-dialog"
+        .open=${this._isCustomizeDialogOpen}
         .heading=${localize(this.hass, 'component.tankerkoenig-card.editor.customize')}
         @closed=${(e: CustomEvent) => {
-          if (e.detail.action === 'confirm') {
+          e.stopPropagation();
+          this._isCustomizeDialogOpen = false;
+          const target = e.target as HTMLElement & { closingReason?: string };
+          if (e.detail?.action === 'confirm' || target?.closingReason === 'confirm') {
             this._confirmCustomize();
           } else {
             this._customizeInputValue = '';
@@ -491,12 +499,25 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             @input=${(e: Event) => (this._customizeInputValue = (e.target as HTMLInputElement).value)}
           ></ha-textfield>
         </div>
-        <button slot="primaryAction" dialogAction="confirm">
-          ${localize(this.hass, 'component.tankerkoenig-card.editor.save')}
-        </button>
-        <button slot="secondaryAction" dialogAction="cancel">
-          ${localize(this.hass, 'component.tankerkoenig-card.editor.cancel')}
-        </button>
+        <div class="dialog-actions">
+          <button class="action-btn"
+            @click=${() => {
+              this._isCustomizeDialogOpen = false;
+              this._customizeInputValue = '';
+              this._customizeNameInputValue = '';
+            }}
+          >
+            ${localize(this.hass, 'component.tankerkoenig-card.editor.cancel')}
+          </button>
+          <button class="action-btn primary"
+            @click=${() => {
+              this._confirmCustomize();
+              this._isCustomizeDialogOpen = false;
+            }}
+          >
+            ${localize(this.hass, 'component.tankerkoenig-card.editor.save')}
+          </button>
+        </div>
       </ha-dialog>
     `;
   }

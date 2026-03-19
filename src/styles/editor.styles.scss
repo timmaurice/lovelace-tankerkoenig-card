@@ -143,23 +143,33 @@ ha-dialog {
     margin-bottom: 16px;
   }
 
-  button {
-    background-color: transparent;
-    border: none;
-    border-radius: 4px;
-    color: var(--primary-color);
-    cursor: pointer;
-    height: 36px;
-    padding: 0 8px;
-    text-transform: uppercase;
+  .dialog-actions {
+    border-top: 1px solid var(--divider-color);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 16px;
 
-    &:hover {
-      background-color: rgba(var(--rgb-primary-color), 0.04);
-    }
+    .action-btn {
+      background-color: transparent;
+      border: none;
+      border-radius: 18px;
+      color: var(--primary-color);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      height: 36px;
+      padding: 0 16px;
 
-    &[slot='primaryAction'] {
-      background-color: var(--primary-color);
-      color: var(--text-primary-color);
+      &:hover {
+        background-color: rgba(var(--rgb-primary-color), 0.04);
+      }
+
+      &.primary {
+        background-color: var(--primary-color);
+        color: var(--text-primary-color);
+      }
     }
   }
 }
