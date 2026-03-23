@@ -1,4 +1,4 @@
-import { LitElement, html, css, TemplateResult, unsafeCSS } from 'lit';
+import { LitElement, html, css, TemplateResult, unsafeCSS, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
@@ -80,6 +80,32 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     if (JSON.stringify(this._addressData) !== JSON.stringify(addressData)) {
       this._addressData = addressData;
     }
+  }
+
+  protected shouldUpdate(changedProps: PropertyValues): boolean {
+    if (
+      changedProps.has('_config') ||
+      changedProps.has('_selectedTab') ||
+      changedProps.has('_addressExpanded') ||
+      changedProps.has('_fontExpanded') ||
+      changedProps.has('_colorExpanded') ||
+      changedProps.has('_activeColorPicker') ||
+      changedProps.has('_isCustomizeDialogOpen') ||
+      changedProps.has('_stationsData') ||
+      changedProps.has('_addressData') ||
+      changedProps.has('_customizeInputValue') ||
+      changedProps.has('_customizeNameInputValue')
+    ) {
+      return true;
+    }
+
+    const oldHass = changedProps.get('hass') as HomeAssistant | undefined;
+    if (oldHass && this.hass && oldHass.language !== this.hass.language) {
+      return true;
+    }
+
+    // Do NOT re-render on standard hass state updates to prevent ha-device-picker blocking the main thread
+    return !oldHass;
   }
 
   private _valueChanged(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }): void {
