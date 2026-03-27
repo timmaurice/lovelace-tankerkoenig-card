@@ -44,12 +44,15 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @query('ha-card') private _card!: LovelaceCard;
   @state() private _config!: TankerkoenigCardConfig;
   @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
+  private _stationCache: Record<string, Station> | null = null;
+  private _watchedEntities: Set<string> = new Set();
 
   public setConfig(config: TankerkoenigCardConfig): void {
     if (!config || !config.stations || !Array.isArray(config.stations) || config.stations.length === 0) {
       throw new Error('You need to define at least one station entity');
     }
     this._config = config;
+    this._stationCache = null; // Invalidate cache so it recalculates on next update
   }
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
@@ -80,25 +83,26 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     return 3;
   }
 
-  private _getStations(hass: HomeAssistant, config: TankerkoenigCardConfig): Record<string, Station> {
+  private _buildStationCache(hass: HomeAssistant, config: TankerkoenigCardConfig): void {
     const stations: Record<string, Station> = {};
+    const watchedEntities: Set<string> = new Set();
 
-    const allEntities = Object.values(hass.states);
+    // 1. Pre-map devices to their entity IDs to avoid O(N * M) registry looping
+    const deviceToEntities: Record<string, string[]> = {};
+    for (const [entityId, entityInfo] of Object.entries(hass.entities)) {
+      if (entityInfo.device_id && (entityId.startsWith('sensor.') || entityId.startsWith('binary_sensor.'))) {
+        if (!deviceToEntities[entityInfo.device_id]) {
+          deviceToEntities[entityInfo.device_id] = [];
+        }
+        deviceToEntities[entityInfo.device_id].push(entityId);
+      }
+    }
 
     config.stations.forEach((station: StationConfig) => {
       const deviceId = typeof station === 'string' ? station : (station as { device: string }).device;
 
-      const deviceEntities = allEntities.filter(
-        (entity) =>
-          hass.entities[entity.entity_id]?.device_id === deviceId &&
-          (entity.entity_id.startsWith('sensor.') || entity.entity_id.startsWith('binary_sensor.')),
-      );
+      const deviceEntityIds = deviceToEntities[deviceId] || [];
 
-      if (deviceEntities.length === 0) {
-        return;
-      }
-
-      // Use the device_id as the unique key for the station.
       if (!stations[deviceId]) {
         stations[deviceId] = {};
       }
@@ -111,37 +115,55 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         stations[deviceId].name = (station as { name: string }).name;
       }
 
-      deviceEntities.forEach((entity) => {
-        const fuelType = entity.attributes.fuel_type;
-        if (fuelType === 'e5') stations[deviceId].e5 = entity.entity_id;
-        if (fuelType === 'e10') stations[deviceId].e10 = entity.entity_id;
-        if (fuelType === 'diesel') stations[deviceId].diesel = entity.entity_id;
-        if (entity.entity_id.endsWith('_status')) {
-          stations[deviceId].status = entity.entity_id;
+      deviceEntityIds.forEach((entityId) => {
+        const stateObj = hass.states[entityId];
+        if (!stateObj) return;
+
+        watchedEntities.add(entityId);
+        const fuelType = stateObj.attributes.fuel_type;
+
+        if (fuelType === 'e5') stations[deviceId].e5 = entityId;
+        if (fuelType === 'e10') stations[deviceId].e10 = entityId;
+        if (fuelType === 'diesel') stations[deviceId].diesel = entityId;
+        if (entityId.endsWith('_status')) {
+          stations[deviceId].status = entityId;
         }
       });
     });
 
-    return stations;
+    this._stationCache = stations;
+    this._watchedEntities = watchedEntities;
   }
 
   protected shouldUpdate(changedProperties: Map<string | number | symbol, unknown>): boolean {
     if (changedProperties.has('_config')) {
+      this._buildStationCache(this.hass, this._config);
       return true;
     }
 
     const oldHass = changedProperties.get('hass') as HomeAssistant | undefined;
     if (oldHass) {
-      const stations = this._getStations(this.hass, this._config);
-      const entities = Object.values(stations).flatMap((s) => Object.values(s));
-      const hasChanged = entities.some((entity) => entity && oldHass.states[entity] !== this.hass.states[entity]);
+      if (!this._stationCache) {
+        this._buildStationCache(this.hass, this._config);
+      }
+
+      let hasChanged = false;
+      for (const entityId of this._watchedEntities) {
+        if (oldHass.states[entityId] !== this.hass.states[entityId]) {
+          hasChanged = true;
+          break;
+        }
+      }
+
       if (hasChanged || oldHass.language !== this.hass.language) {
-        this._fetchPriceChanges();
+        if (hasChanged) {
+          this._fetchPriceChanges();
+        }
         return true;
       }
     }
 
-    return true; // First render
+    return !oldHass; // First render fallback
   }
 
   private _handleMoreInfo(entityId: string): void {
@@ -151,7 +173,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   private async _fetchPriceChanges(): Promise<void> {
     if (!this._config || !this._config.show_price_changes) return;
 
-    const stations = this._getStations(this.hass, this._config);
+    if (!this._stationCache) this._buildStationCache(this.hass, this._config);
+    const stations = this._stationCache || {};
     const priceEntities = Object.values(stations)
       .flatMap((s) => [s.e5, s.e10, s.diesel])
       .filter((id): id is string => !!id);
@@ -211,7 +234,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     };
 
     const sortBy = this._config.sort_by;
-    let stationEntries = Object.entries(this._getStations(this.hass, this._config));
+    if (!this._stationCache) this._buildStationCache(this.hass, this._config);
+    let stationEntries = Object.entries(this._stationCache || {}) as [string, Station][];
 
     if (this._config.hide_unavailable_stations) {
       stationEntries = stationEntries.filter(
@@ -227,8 +251,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         if (!entityA) return 1;
         if (!entityB) return -1;
 
-        const priceA = parseFloat(this.hass.states[entityA].state);
-        const priceB = parseFloat(this.hass.states[entityB].state);
+        const priceA = parseFloat(this.hass.states[entityA as string].state);
+        const priceB = parseFloat(this.hass.states[entityB as string].state);
 
         if (isNaN(priceA)) return 1;
         if (isNaN(priceB)) return -1;

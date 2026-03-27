@@ -76,6 +76,29 @@ ha-formfield {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+  transition: opacity 0.2s ease;
+
+  &.dragged {
+    opacity: 0.4;
+  }
+
+  &.drop-above {
+    border-top: 2px dashed var(--primary-color);
+  }
+
+  &.drop-below {
+    border-bottom: 2px dashed var(--primary-color);
+  }
+
+  .drag-handle {
+    cursor: grab;
+    color: var(--secondary-text-color);
+    display: flex;
+    align-items: center;
+    &:active {
+      cursor: grabbing;
+    }
+  }
 
   .logo {
     border-radius: 4px;

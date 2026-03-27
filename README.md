@@ -22,6 +22,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 - Hide stations that are currently closed.
 - Fully customizable through the visual editor.
 - Easy station selection using the visual editor.
+- Intuitively reorder selected stations with visual drag-and-drop in the Customize tab.
 - Overwrite default logos with custom image URLs.
 
 ## Localization

@@ -1,4 +1,4 @@
-import { LitElement, html, css, TemplateResult, unsafeCSS, PropertyValues } from 'lit';
+import { LitElement, html, css, TemplateResult, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
@@ -12,18 +12,6 @@ if (!window.customElements.get('rgba-string-color-picker')) {
 }
 
 const GENERAL_SCHEMA = [{ name: 'title', selector: { text: {} } }];
-const STATIONS_SCHEMA = [
-  {
-    name: 'stations',
-    selector: {
-      device: {
-        multiple: true,
-        integration: 'tankerkoenig',
-      },
-    },
-  },
-];
-
 interface DialogParams {
   index: number;
   deviceId: string;
@@ -56,6 +44,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _fontExpanded = false;
   @state() private _colorExpanded = false;
   @state() private _isCustomizeDialogOpen = false;
+  @state() private _draggedIndex: number | null = null;
+  @state() private _dragOverIndex: number | null = null;
 
   @state() private _stationsData: { stations: string[] } = { stations: [] };
   @state() private _addressData: { show_street: boolean; show_postcode: boolean; show_city: boolean } = {
@@ -82,7 +72,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     }
   }
 
-  protected shouldUpdate(changedProps: PropertyValues): boolean {
+  protected shouldUpdate(changedProps: import('lit').PropertyValues): boolean {
     if (
       changedProps.has('_config') ||
       changedProps.has('_selectedTab') ||
@@ -94,7 +84,9 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       changedProps.has('_stationsData') ||
       changedProps.has('_addressData') ||
       changedProps.has('_customizeInputValue') ||
-      changedProps.has('_customizeNameInputValue')
+      changedProps.has('_customizeNameInputValue') ||
+      changedProps.has('_draggedIndex') ||
+      changedProps.has('_dragOverIndex')
     ) {
       return true;
     }
@@ -172,6 +164,40 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     // Otherwise, the click was outside, so close the picker.
     this._closeActiveColorPicker();
   };
+
+  private _getStationsSchema() {
+    if (!this.hass) return [];
+
+    const tkEntityIDs = Object.keys(this.hass.entities).filter(
+      (eid) => this.hass.entities[eid].platform === 'tankerkoenig',
+    );
+    const tkDeviceIds = new Set(tkEntityIDs.map((eid) => this.hass.entities[eid].device_id).filter(Boolean));
+
+    const tkDevices = Array.from(tkDeviceIds)
+      .map((id) => this.hass.devices[id as string])
+      .filter(Boolean);
+
+    const options = tkDevices.map((d) => ({
+      value: d.id,
+      label: d.name_by_user || d.name || d.id,
+    }));
+
+    options.sort((a, b) => a.label.localeCompare(b.label));
+
+    return [
+      {
+        name: 'stations',
+        selector: {
+          select: {
+            multiple: true,
+            mode: 'dropdown',
+            custom_value: true,
+            options: options,
+          },
+        },
+      },
+    ];
+  }
 
   private _closeActiveColorPicker(): void {
     if (!this._activeColorPicker) return;
@@ -282,7 +308,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <div class="tab-content">
               ${this._selectedTab === 0
                 ? html` <ha-form
-                    .schema=${STATIONS_SCHEMA}
+                    .schema=${this._getStationsSchema()}
                     .hass=${this.hass}
                     .data=${this._stationsData}
                     .computeLabel=${(s: { name: string }) =>
@@ -450,6 +476,53 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     }
   }
 
+  private _handleDragStart(e: DragEvent, index: number) {
+    this._draggedIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index.toString());
+    }
+  }
+
+  private _handleDragEnd() {
+    this._draggedIndex = null;
+  }
+
+  private _handleDragOver(e: DragEvent, targetIndex: number) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    if (this._draggedIndex !== null && this._draggedIndex !== targetIndex) {
+      this._dragOverIndex = targetIndex;
+    }
+  }
+
+  private _handleDragLeave(e: DragEvent, targetIndex: number) {
+    if (this._dragOverIndex === targetIndex) {
+      this._dragOverIndex = null;
+    }
+  }
+
+  private _handleDrop(e: DragEvent, targetIndex: number) {
+    e.preventDefault();
+    this._dragOverIndex = null;
+    if (this._draggedIndex === null || this._draggedIndex === targetIndex) return;
+
+    const newStations = [...(this._config.stations || [])];
+    const item = newStations.splice(this._draggedIndex, 1)[0];
+    newStations.splice(targetIndex, 0, item);
+
+    this._draggedIndex = null;
+
+    const newConfig = { ...this._config, stations: newStations };
+    fireEvent(this, 'config-changed', { config: newConfig });
+  }
+
+  private _handleDragEnter() {
+    // Left empty for strict compliance but drop handled by dragover
+  }
+
   private _renderStation(station: StationConfig, index: number): TemplateResult {
     const deviceId = typeof station === 'string' ? station : station.device;
     const customLogo = typeof station === 'object' ? station.logo : undefined;
@@ -460,8 +533,23 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     const brand = this._getBrandFromDevice(deviceId);
     const defaultLogo = getLogoUrl(brand);
 
+    const isDropAbove = this._dragOverIndex === index && this._draggedIndex !== null && this._draggedIndex > index;
+    const isDropBelow = this._dragOverIndex === index && this._draggedIndex !== null && this._draggedIndex < index;
+
     return html`
-      <div class="station-row">
+      <div
+        class="station-row ${this._draggedIndex === index ? 'dragged' : ''} ${isDropAbove
+          ? 'drop-above'
+          : ''} ${isDropBelow ? 'drop-below' : ''}"
+        draggable="true"
+        @dragstart=${(e: DragEvent) => this._handleDragStart(e, index)}
+        @dragend=${this._handleDragEnd}
+        @dragover=${(e: DragEvent) => this._handleDragOver(e, index)}
+        @dragleave=${(e: DragEvent) => this._handleDragLeave(e, index)}
+        @dragenter=${this._handleDragEnter}
+        @drop=${(e: DragEvent) => this._handleDrop(e, index)}
+      >
+        <div class="drag-handle"><ha-icon icon="mdi:drag"></ha-icon></div>
         <img
           class="logo"
           src=${customLogo || defaultLogo}

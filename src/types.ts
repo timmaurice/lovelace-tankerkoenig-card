@@ -46,6 +46,7 @@ export interface HassEntityRegistryDisplayEntry {
   display_precision?: number;
   device_id?: string;
   domain?: string;
+  platform?: string;
 }
 
 // A basic representation of a Lovelace card
