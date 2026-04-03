@@ -83,6 +83,7 @@ Some of the supported brands include:
 - citi oil
 - Classic
 - E-Center
+- Edeka
 - ELAN
 - Esso
 - Feneberg
@@ -100,6 +101,7 @@ Some of the supported brands include:
 - Nordoel
 - OIL!
 - OMV
+- Orlen
 - Q1
 - Raiffeisen
 - RAN
