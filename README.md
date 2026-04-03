@@ -101,7 +101,7 @@ Some of the supported brands include:
 - Nordoel
 - OIL!
 - OMV
-- Orlen
+- ORLEN Express
 - Q1
 - Raiffeisen
 - RAN
