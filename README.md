@@ -97,6 +97,7 @@ Some of the supported brands include:
 - MOL
 - Mr.Wash
 - MTB
+- Nordoel
 - OIL!
 - OMV
 - Q1
