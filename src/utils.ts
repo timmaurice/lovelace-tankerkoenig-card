@@ -63,9 +63,14 @@ export function getLogoUrl(brand?: string): string {
     return `${LOGO_BASE_URL}404.png`;
   }
 
-  const formattedBrand = brand
+  let formattedBrand = brand
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
+
+  if (formattedBrand.startsWith('globus')) {
+    formattedBrand = 'globus';
+  }
+
   return `${LOGO_BASE_URL}${formattedBrand}.png`;
 }

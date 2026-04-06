@@ -414,3 +414,27 @@ describe('TankerkoenigCard', () => {
     });
   });
 });
+
+describe('utils', () => {
+  describe('getLogoUrl', () => {
+    const LOGO_BASE_URL =
+      'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
+
+    it('should return 404 logo if no brand is provided', () => {
+      expect(utils.getLogoUrl()).toBe(`${LOGO_BASE_URL}404.png`);
+      expect(utils.getLogoUrl('')).toBe(`${LOGO_BASE_URL}404.png`);
+    });
+
+    it('should format standard brand names correctly', () => {
+      expect(utils.getLogoUrl('Aral')).toBe(`${LOGO_BASE_URL}aral.png`);
+      expect(utils.getLogoUrl('Shell Station')).toBe(`${LOGO_BASE_URL}shell-station.png`);
+      expect(utils.getLogoUrl('ESSO!')).toBe(`${LOGO_BASE_URL}esso.png`);
+    });
+
+    it('should map Globus variations to the base globus logo', () => {
+      expect(utils.getLogoUrl('Globus Baumarkt Wittlich')).toBe(`${LOGO_BASE_URL}globus.png`);
+      expect(utils.getLogoUrl('Globus SB-Warenhaus')).toBe(`${LOGO_BASE_URL}globus.png`);
+      expect(utils.getLogoUrl('globus')).toBe(`${LOGO_BASE_URL}globus.png`);
+    });
+  });
+});
