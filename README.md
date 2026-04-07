@@ -96,6 +96,7 @@ Some of the supported brands include:
 - Hoyer
 - Jet
 - Joiss
+- K+K Klaas & Kock
 - Minera / Minera Automatenstation
 - MOL
 - Mr.Wash
@@ -113,6 +114,7 @@ Some of the supported brands include:
 - Spreves
 - Sprint
 - Star
+- Team
 - Total
 - Total Energies
 - V-Markt
