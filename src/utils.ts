@@ -53,6 +53,8 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
 const LOGO_BASE_URL =
   'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
 
+const BRAND_PREFIXES = ['globus', 'raiffeisen'];
+
 /**
  * Generates a URL for a gas station logo based on the brand name.
  * @param brand The brand name of the gas station.
@@ -68,8 +70,9 @@ export function getLogoUrl(brand?: string): string {
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 
-  if (formattedBrand.startsWith('globus')) {
-    formattedBrand = 'globus';
+  const matchedPrefix = BRAND_PREFIXES.find((prefix) => formattedBrand.startsWith(prefix));
+  if (matchedPrefix) {
+    formattedBrand = matchedPrefix;
   }
 
   return `${LOGO_BASE_URL}${formattedBrand}.png`;

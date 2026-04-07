@@ -436,5 +436,11 @@ describe('utils', () => {
       expect(utils.getLogoUrl('Globus SB-Warenhaus')).toBe(`${LOGO_BASE_URL}globus.png`);
       expect(utils.getLogoUrl('globus')).toBe(`${LOGO_BASE_URL}globus.png`);
     });
+
+    it('should map Raiffeisen variations to the base raiffeisen logo', () => {
+      expect(utils.getLogoUrl('Raiffeisen Mitte')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
+      expect(utils.getLogoUrl('Raiffeisen-Tankstelle')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
+      expect(utils.getLogoUrl('raiffeisen')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
+    });
   });
 });
