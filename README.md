@@ -93,6 +93,7 @@ Some of the supported brands include:
 - HEM
 - Hessol
 - Hornbach
+- Hoyer
 - Jet
 - Joiss
 - Minera / Minera Automatenstation
