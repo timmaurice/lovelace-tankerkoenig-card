@@ -110,6 +110,7 @@ Some of the supported brands include:
 - RAN
 - SB-Tank
 - Schindele
+- SCORE
 - Shell
 - Spreves
 - Sprint
