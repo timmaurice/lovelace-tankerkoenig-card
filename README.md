@@ -101,6 +101,7 @@ Some of the supported brands include:
 - MOL
 - Mr.Wash
 - MTB
+- Mundorf Tank
 - Nordoel
 - OIL!
 - OMV
