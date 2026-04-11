@@ -53,7 +53,7 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
 const LOGO_BASE_URL =
   'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
 
-const BRAND_PREFIXES = ['globus', 'raiffeisen'];
+const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen'];
 
 /**
  * Generates a URL for a gas station logo based on the brand name.

@@ -12,6 +12,13 @@
     "show_street": "Straße anzeigen",
     "show_postcode": "Postleitzahl anzeigen",
     "show_city": "Stadt anzeigen",
+    "clickable_addresses": "Klickbare Adressen",
+    "map_provider": "Navigations-App",
+    "map_providers": {
+      "google": "Google Maps",
+      "apple": "Apple Maps",
+      "waze": "Waze"
+    },
     "show_last_updated": "Zeitstempel der letzten Aktualisierung anzeigen",
     "show_price_changes": "Preisänderungen anzeigen",
     "fuel_types": "Reihenfolge der Kraftstoffarten",

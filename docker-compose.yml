@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  homeassistant:
+    container_name: homeassistant_tankerkoenig_test
+    image: 'ghcr.io/home-assistant/home-assistant:stable'
+    volumes:
+      - ./test/ha-config:/config
+      - ./dist:/config/www/tankerkoenig-card:ro
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+    ports:
+      - '8123:8123'

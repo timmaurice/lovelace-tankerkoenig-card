@@ -59,6 +59,13 @@
   }
 }
 
+.address-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--divider-color);
+  text-underline-offset: 2px;
+}
+
 @keyframes marquee {
   0% {
     transform: translateX(0);

@@ -336,6 +336,35 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
             const address = addressParts.join(', ');
 
+            let addressHtml: string | TemplateResult = address;
+            if (this._config.clickable_addresses && address) {
+              const fullAddressQuery = [stationName, address].filter(Boolean).join(', ');
+              const fallbackQuery =
+                attributes.latitude && attributes.longitude
+                  ? `${attributes.latitude},${attributes.longitude}`
+                  : fullAddressQuery;
+
+              let mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackQuery)}`;
+              const provider = this._config.map_provider || 'google';
+
+              if (provider === 'apple') {
+                mapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(fullAddressQuery)}${
+                  attributes.latitude && attributes.longitude
+                    ? `&ll=${attributes.latitude},${attributes.longitude}`
+                    : ''
+                }`;
+              } else if (provider === 'waze') {
+                mapsUrl =
+                  attributes.latitude && attributes.longitude
+                    ? `https://waze.com/ul?ll=${attributes.latitude},${attributes.longitude}&navigate=yes`
+                    : `https://waze.com/ul?q=${encodeURIComponent(fullAddressQuery)}`;
+              }
+
+              addressHtml = html`<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="address-link"
+                >${address}</a
+              >`;
+            }
+
             return html`
               <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
                 <div class="logo-container">
@@ -350,7 +379,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   <div class="row-1">
                     <span class="station-name">${stationName}</span>
                   </div>
-                  ${address ? html`<div class="row-2"><span class="address">${address}</span></div>` : ''}
+                  ${address ? html`<div class="row-2"><span class="address">${addressHtml}</span></div>` : ''}
                   ${this._config.show_last_updated
                     ? html`<div class="row-3">
                         <span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>

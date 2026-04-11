@@ -13,6 +13,13 @@
     "show_street": "Show Street",
     "show_postcode": "Show Postcode",
     "show_city": "Show City",
+    "clickable_addresses": "Clickable Addresses",
+    "map_provider": "Navigation App",
+    "map_providers": {
+      "google": "Google Maps",
+      "apple": "Apple Maps",
+      "waze": "Waze"
+    },
     "show_last_updated": "Show Last Updated Timestamp",
     "show_price_changes": "Show Price Changes",
     "fuel_types": "Fuel Types Order",

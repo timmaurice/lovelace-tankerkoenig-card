@@ -16,7 +16,7 @@ A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkö
 - Displays prices for multiple fuel stations from the [Tankerkönig integration](https://www.home-assistant.io/integrations/tankerkoenig/).
 - Sort stations by price for a specific fuel type.
 - Show only the X cheapest stations based on a selected fuel type.
-- Show/hide station address and last updated timestamp.
+- Show/hide station address (with clickable maps navigation link) and last updated timestamp.
 - Customize the order of displayed fuel types.
 - Show indicators for price increases or decreases.
 - Hide stations that are currently closed.
@@ -105,7 +105,7 @@ Some of the supported brands include:
 - Nordoel
 - OIL!
 - OMV
-- ORLEN Express
+- ORLEN / ORLEN Express
 - Q1
 - Raiffeisen
 - RAN
@@ -116,6 +116,7 @@ Some of the supported brands include:
 - Spreves
 - Sprint
 - Star
+- SVG
 - Team
 - Total
 - Total Energies
@@ -145,6 +146,8 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `show_street`               | boolean                             | `true`                      | Show the street and house number of the station.                                                                  |
 | `show_postcode`             | boolean                             | `true`                      | Show the postcode of the station.                                                                                 |
 | `show_city`                 | boolean                             | `true`                      | Show the city of the station.                                                                                     |
+| `clickable_addresses`       | boolean                             | `false`                     | Make addresses clickable links that open in your preferred navigation / maps application.                         |
+| `map_provider`              | 'google', 'apple', 'waze'           | `'google'`                  | Used alongside `clickable_addresses` to choose which map app opens.                                               |
 | `show_last_updated`         | boolean                             | `false`                     | Show the last updated timestamp for the station.                                                                  |
 | `show_price_changes`        | boolean                             | `false`                     | Show an indicator for price increases or decreases.                                                               |
 | `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']`   | The order in which to display the fuel types.                                                                     |
@@ -219,6 +222,21 @@ stations:
     ```
 
 4.  In your Home Assistant instance, you will need to configure Lovelace to use the local development version of the card from `dist/tankerkoenig-card.js`.
+
+### Local Testing with Docker
+
+To test your compiled card locally without modifying your production Home Assistant setup:
+
+1. Build the card with `npm run build` or keep it auto-compiling using `npm run watch`.
+2. Run `npm run docker:start` to spin up a local Home Assistant container.
+3. Access Home Assistant at [http://localhost:8123](http://localhost:8123) and complete the onboarding process.
+4. Navigate to **Settings** -> **Dashboards** -> **⋮** (top right) -> **Resources**.
+5. Add the url `/local/tankerkoenig-card/tankerkoenig-card.js` with the Resource Type `JavaScript Module`.
+6. Add the official Tankerkönig integration in Home Assistant so you have dummy sensors to test with.
+7. Add the custom card in your local dashboard to verify your changes!
+
+When you're done, you can clean up the environment by running `npm run docker:stop`. Note that your configuration will persist in the `test/ha-config` folder.
+
 </details>
 
 ---

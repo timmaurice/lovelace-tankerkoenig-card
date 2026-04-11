@@ -48,10 +48,18 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _dragOverIndex: number | null = null;
 
   @state() private _stationsData: { stations: string[] } = { stations: [] };
-  @state() private _addressData: { show_street: boolean; show_postcode: boolean; show_city: boolean } = {
+  @state() private _addressData: {
+    show_street: boolean;
+    show_postcode: boolean;
+    show_city: boolean;
+    clickable_addresses: boolean;
+    map_provider: string;
+  } = {
     show_street: true,
     show_postcode: true,
     show_city: true,
+    clickable_addresses: false,
+    map_provider: 'google',
   };
 
   public setConfig(config: TankerkoenigCardConfig): void {
@@ -66,6 +74,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       show_street: config.show_street ?? true,
       show_postcode: config.show_postcode ?? true,
       show_city: config.show_city ?? true,
+      clickable_addresses: config.clickable_addresses ?? false,
+      map_provider: config.map_provider ?? 'google',
     };
     if (JSON.stringify(this._addressData) !== JSON.stringify(addressData)) {
       this._addressData = addressData;
@@ -350,12 +360,54 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                     { name: 'show_street', selector: { boolean: {} } },
                     { name: 'show_postcode', selector: { boolean: {} } },
                     { name: 'show_city', selector: { boolean: {} } },
+                    { name: 'clickable_addresses', selector: { boolean: {} } },
+                    ...(this._addressData.clickable_addresses
+                      ? [
+                          {
+                            name: 'map_provider',
+                            selector: {
+                              select: {
+                                mode: 'dropdown',
+                                options: [
+                                  {
+                                    value: 'google',
+                                    label: localize(
+                                      this.hass,
+                                      'component.tankerkoenig-card.editor.map_providers.google',
+                                    ),
+                                  },
+                                  {
+                                    value: 'apple',
+                                    label: localize(
+                                      this.hass,
+                                      'component.tankerkoenig-card.editor.map_providers.apple',
+                                    ),
+                                  },
+                                  {
+                                    value: 'waze',
+                                    label: localize(this.hass, 'component.tankerkoenig-card.editor.map_providers.waze'),
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        ]
+                      : []),
                   ]}
                   .hass=${this.hass}
                   .data=${this._addressData}
                   .computeLabel=${(s: { name: string }) =>
                     localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
-                  @value-changed=${this._valueChanged}
+                  @value-changed=${(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }) => {
+                    const newValue = { ...ev.detail.value };
+                    // If clickable addresses is turned off, we don't necessarily need to clear map_provider,
+                    // but we ensure it reacts appropriately.
+                    if (newValue.clickable_addresses === false && this._addressData.clickable_addresses) {
+                      newValue.map_provider = 'google';
+                    }
+                    this._addressData = { ...this._addressData, ...newValue } as typeof this._addressData;
+                    this._valueChanged({ detail: { value: newValue } });
+                  }}
                 ></ha-form>
               </div>
             </ha-expansion-panel>

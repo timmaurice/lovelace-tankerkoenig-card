@@ -77,6 +77,8 @@ export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   show_street?: boolean;
   show_postcode?: boolean;
   show_city?: boolean;
+  clickable_addresses?: boolean;
+  map_provider?: 'google' | 'apple' | 'waze';
   show_last_updated?: boolean;
   show_price_changes?: boolean;
   fuel_types?: ('e5' | 'e10' | 'diesel')[];
