@@ -34,7 +34,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-lit": "^2.2.1",
     "eslint-plugin-wc": "^3.1.0",
-    "globals": "^17.4.0",
+    "globals": "^17.5.0",
     "jsdom": "^29.0.2",
     "lit": "^3.3.2",
     "prettier": "^3.8.2",
@@ -42,7 +42,7 @@
     "rollup-plugin-lit-css": "^6.0.1",
     "sass": "^1.99.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.1",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^4.1.4"
   },
   "dependencies": {
