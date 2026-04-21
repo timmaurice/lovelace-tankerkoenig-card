@@ -1,0 +1,58 @@
+{
+  "editor": {
+    "groups": {
+      "core": "Основні налаштування",
+      "display": "Відображення",
+      "address": "Налаштування адреси",
+      "font": "Налаштування шрифту",
+      "color": "Налаштування кольорів"
+    },
+    "title": "Заголовок (необовʼязково)",
+    "stations": "Заправні станції",
+    "show_address": "Показувати адресу станції",
+    "show_street": "Показувати вулицю",
+    "show_postcode": "Показувати поштовий індекс",
+    "show_city": "Показувати місто",
+    "clickable_addresses": "Кліковані адреси",
+    "map_provider": "Навігаційний застосунок",
+    "map_providers": {
+      "google": "Google Maps",
+      "apple": "Apple Maps",
+      "waze": "Waze"
+    },
+    "show_last_updated": "Показувати час останнього оновлення",
+    "show_price_changes": "Показувати зміни цін",
+    "fuel_types": "Порядок типів пального",
+    "hide_unavailable_stations": "Приховувати недоступні станції",
+    "sort_by": "Сортувати станції за ціною",
+    "show_only_cheapest": "Показувати лише найдешевші станції",
+    "show_only_cheapest_count": "Кількість найдешевших станцій (потребує сортування)",
+    "show_prices_side_by_side": "Показувати ціни поруч",
+    "font_scale": "Масштаб шрифту",
+    "price_bg_color": "Колір фону ціни",
+    "price_font_color": "Колір шрифту ціни",
+    "fuel_type_options": {
+      "e5": "Супер E5(95)",
+      "e10": "Супер E10(95)",
+      "diesel": "Дизель"
+    },
+    "sort_by_options": {
+      "none": "Без сортування"
+    },
+    "add_station": "Додати станцію",
+    "customize": "Налаштувати",
+    "remove": "Видалити",
+    "station_name": "Назва станції (необовʼязково)",
+    "logo_url": "URL логотипу (необовʼязково)",
+    "logo_url_placeholder": "Шлях до власного логотипу",
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "tab_select": "Вибір",
+    "tab_customize": "Налаштування",
+    "show_address_info": "Відображення адреси",
+    "show_address_detail": "Кожен перемикач керує відображенням частини адреси. Якщо жоден не вибрано — адреса буде прихована."
+  },
+  "card": {
+    "station_not_found": "Станцію не знайдено: {station}"
+  }
+}
