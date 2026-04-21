@@ -31,6 +31,7 @@ The editor is available in the following languages:
 
 - English
 - German
+- Ukrainian
 
 <details>
 <summary>Contributing Translations</summary>
