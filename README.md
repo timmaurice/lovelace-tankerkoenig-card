@@ -111,6 +111,7 @@ Some of the supported brands include:
 - Raiffeisen
 - RAN
 - SB-Tank
+- Schillhorn
 - Schindele
 - SCORE
 - Shell
