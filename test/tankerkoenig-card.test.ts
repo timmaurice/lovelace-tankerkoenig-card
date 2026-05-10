@@ -442,5 +442,10 @@ describe('utils', () => {
       expect(utils.getLogoUrl('Raiffeisen-Tankstelle')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
       expect(utils.getLogoUrl('raiffeisen')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
     });
+
+    it('should map bft variations to the base bft logo', () => {
+      expect(utils.getLogoUrl('bft-Tankstelle')).toBe(`${LOGO_BASE_URL}bft.png`);
+      expect(utils.getLogoUrl('BFT')).toBe(`${LOGO_BASE_URL}bft.png`);
+    });
   });
 });
