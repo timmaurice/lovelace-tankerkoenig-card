@@ -120,6 +120,7 @@ Some of the supported brands include:
 - Star
 - SVG
 - Team
+- Trigema
 - Total
 - Total Energies
 - V-Markt
