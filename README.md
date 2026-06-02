@@ -91,6 +91,7 @@ Some of the supported brands include:
 - Feneberg
 - Flaeming Tank
 - Globus
+- Greenline
 - HEM
 - Hessol
 - Hornbach
