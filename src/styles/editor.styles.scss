@@ -15,11 +15,15 @@
 .color-input-wrapper {
   align-items: center;
   display: flex;
+  flex: 1 1 0;
   gap: var(--bge-editor-spacing);
+  min-width: 0;
 
+  ha-input,
   ha-textfield {
-    flex-grow: 1;
+    flex: 1 1 0;
     margin-right: calc(var(--bge-editor-spacing, 12px) / 2);
+    min-width: 0;
   }
 }
 
@@ -147,6 +151,7 @@ ha-formfield {
   padding: 0 24px;
 }
 
+ha-input,
 ha-textfield {
   width: 100%;
 }
@@ -161,6 +166,7 @@ ha-dialog {
   --mdc-dialog-min-width: 400px;
   --mdc-dialog-max-width: 500px;
 
+  ha-input,
   ha-textfield {
     display: block;
     margin-bottom: 16px;

@@ -480,7 +480,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
 
   private _renderColorPicker(configValue: keyof TankerkoenigCardConfig, label: string, color: string): TemplateResult {
     return html` <div class="color-input-wrapper">
-      <ha-textfield
+      <ha-input
         .label=${label}
         .value=${this._config[configValue] || ''}
         .configValue=${configValue as string}
@@ -488,7 +488,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
           const newConfig = { ...this._config, [configValue]: (e.target as HTMLInputElement).value };
           fireEvent(this, 'config-changed', { config: newConfig });
         }}
-      ></ha-textfield>
+      ></ha-input>
       <div
         class="color-preview"
         style="background-color: ${color}"
@@ -668,17 +668,17 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         }}
       >
         <div>
-          <ha-textfield
+          <ha-input
             .label=${localize(this.hass, 'component.tankerkoenig-card.editor.station_name')}
             .value=${this._customizeNameInputValue}
             @input=${(e: Event) => (this._customizeNameInputValue = (e.target as HTMLInputElement).value)}
-          ></ha-textfield>
-          <ha-textfield
+          ></ha-input>
+          <ha-input
             .label=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url')}
             .placeholder=${localize(this.hass, 'component.tankerkoenig-card.editor.logo_url_placeholder')}
             .value=${this._customizeInputValue}
             @input=${(e: Event) => (this._customizeInputValue = (e.target as HTMLInputElement).value)}
-          ></ha-textfield>
+          ></ha-input>
         </div>
         <div class="dialog-actions">
           <button
