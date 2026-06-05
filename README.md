@@ -108,6 +108,7 @@ Some of the supported brands include:
 - OIL!
 - OMV
 - ORLEN / ORLEN Express
+- PIN _(incl. Service-Station)_
 - Q1
 - Raiffeisen
 - RAN

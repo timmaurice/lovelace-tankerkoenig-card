@@ -447,5 +447,10 @@ describe('utils', () => {
       expect(utils.getLogoUrl('bft-Tankstelle')).toBe(`${LOGO_BASE_URL}bft.png`);
       expect(utils.getLogoUrl('BFT')).toBe(`${LOGO_BASE_URL}bft.png`);
     });
+
+    it('should map PIN variations to the base pin logo', () => {
+      expect(utils.getLogoUrl('PIN Service-Station')).toBe(`${LOGO_BASE_URL}pin.png`);
+      expect(utils.getLogoUrl('PIN')).toBe(`${LOGO_BASE_URL}pin.png`);
+    });
   });
 });
