@@ -16,10 +16,23 @@
   align-items: center;
   display: flex;
   gap: 12px;
+  position: relative;
 
   &.closed {
     filter: grayscale(1);
-    opacity: 0.5;
+
+    .logo-container,
+    .station-name,
+    .badge,
+    .address,
+    .last-updated,
+    .prices {
+      opacity: 0.5;
+    }
+  }
+
+  &.has-expanded-tooltip {
+    z-index: 10;
   }
 }
 
@@ -37,10 +50,28 @@
 .info {
   flex-grow: 1;
   min-width: 0;
+  position: relative;
 }
 
 .row-1 {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  position: relative;
+}
+
+.station-name-wrapper {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
+}
+
+.badge-container {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 6px;
+  position: relative;
 }
 
 .station-name {
@@ -56,6 +87,126 @@
     animation: marquee 5s linear infinite;
     overflow: visible;
     width: fit-content;
+  }
+}
+
+.badge {
+  border-radius: 4px;
+  font-size: 0.65em;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  text-transform: uppercase;
+  transition:
+    transform 0.1s ease,
+    filter 0.1s ease;
+  white-space: nowrap;
+
+  &[title]:not([title='']) {
+    cursor: pointer;
+
+    &:hover {
+      filter: brightness(1.1);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+.badge-247 {
+  background-color: rgba(0, 150, 136, 0.15);
+  border: 1px solid rgba(0, 150, 136, 0.3);
+  color: var(--state-binary_sensor-active-color, #009688);
+}
+
+.badge-open {
+  background-color: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: var(--success-color, #4caf50);
+}
+
+.badge-closing-soon {
+  background-color: rgba(255, 152, 0, 0.15);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  color: var(--warning-color, #ff9800);
+}
+
+.badge-closed {
+  background-color: rgba(244, 67, 54, 0.15);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  color: var(--error-color, #f44336);
+}
+
+.opening-hours-callout {
+  align-items: flex-start;
+  animation: fadeIn 0.15s ease-in-out;
+  background-color: var(
+    --tooltip-background-color,
+    var(--secondary-background-color, var(--card-background-color, #202020))
+  );
+  border: 1px solid var(--tooltip-border-color, var(--divider-color));
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  color: var(--tooltip-text-color, var(--primary-text-color, #ffffff));
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82em;
+  gap: 6px;
+  left: 50%;
+  max-width: 320px;
+  padding: 10px 14px;
+  position: absolute;
+  top: 24px;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 99;
+
+  .opening-hours-line {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .opening-hours-days {
+    color: var(--tooltip-text-color, var(--secondary-text-color));
+    font-weight: 500;
+    opacity: 0.8;
+  }
+
+  .opening-hours-time {
+    color: var(--tooltip-text-color, var(--primary-text-color));
+    font-family: var(--paper-font-code_-_font-family, monospace);
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  &::before {
+    border-color: transparent transparent var(--tooltip-border-color, var(--divider-color)) transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: 50%;
+    position: absolute;
+    top: -6px;
+    transform: translateX(-50%);
+  }
+
+  &::after {
+    border-color: transparent transparent
+      var(--tooltip-background-color, var(--secondary-background-color, var(--card-background-color, #202020)))
+      transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: 50%;
+    position: absolute;
+    top: -5px;
+    transform: translateX(-50%);
   }
 }
 
@@ -77,6 +228,17 @@
 
   100% {
     transform: translateX(calc(100px - 100%));
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }
 
@@ -157,4 +319,10 @@
   .prices.prices-side-by-side .price-container {
     flex-direction: column;
   }
+}
+
+.price-container:focus-visible,
+.badge[tabindex='0']:focus-visible {
+  outline: 2px solid var(--accent-color, var(--primary-color, #03a9f4));
+  outline-offset: 2px;
 }

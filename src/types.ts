@@ -90,4 +90,6 @@ export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   font_scale?: number;
   price_bg_color?: string;
   price_font_color?: string;
+  show_24_7_badge?: boolean;
+  show_opening_status?: boolean;
 }

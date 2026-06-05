@@ -413,6 +413,120 @@ describe('TankerkoenigCard', () => {
       expect(logo?.src).toBe(customLogoUrl);
     });
   });
+
+  describe('Opening Times and Badges Options', () => {
+    it('should render 24/7 badge when twenty_four_seven is true on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.twenty_four_seven = true;
+      await setupCard({ show_24_7_badge: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-247');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('24/7');
+    });
+
+    it('should render closing status badge when opening hours are configured on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = '06:00-22:00';
+
+      const fakeNow = new Date();
+      fakeNow.setHours(21);
+      fakeNow.setMinutes(30);
+      vi.useFakeTimers();
+      vi.setSystemTime(fakeNow);
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-closing-soon');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('Closes soon');
+
+      vi.useRealTimers();
+    });
+
+    it('should render opening times tooltip when badge is clicked and opening_hours is configured on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      const callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
+    });
+
+    it('should render 24/7 badge when whole_day attribute is true on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.whole_day = true;
+      await setupCard({ show_24_7_badge: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-247');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('24/7');
+    });
+
+    it('should render opening times from opening_times array attribute on status entity when clicked', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_times = [
+        { start: '08:30:00', end: '19:00:00', text: 'Mo-Fr' },
+        { start: '08:30:00', end: '18:00:00', text: 'Samstag' },
+      ];
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      const callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      const lines = callout?.querySelectorAll('.opening-hours-line');
+      expect(lines?.length).toBe(2);
+      expect(lines?.[0].querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(lines?.[0].querySelector('.opening-hours-time')?.textContent).toBe('08:30-19:00');
+      expect(lines?.[1].querySelector('.opening-hours-days')?.textContent).toBe('Saturday');
+      expect(lines?.[1].querySelector('.opening-hours-time')?.textContent).toBe('08:30-18:00');
+    });
+
+    it('should toggle opening times callout when status badge is clicked', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      // Verify callout is hidden initially
+      let callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).toBeNull();
+      const stationDiv = element.shadowRoot?.querySelector('.station');
+      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(false);
+
+      // Find and click the status badge
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      // Verify callout is now visible
+      callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
+      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(true);
+
+      // Click the badge again
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      // Verify callout is hidden again
+      callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).toBeNull();
+      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(false);
+    });
+  });
 });
 
 describe('utils', () => {
@@ -446,6 +560,73 @@ describe('utils', () => {
     it('should map bft variations to the base bft logo', () => {
       expect(utils.getLogoUrl('bft-Tankstelle')).toBe(`${LOGO_BASE_URL}bft.png`);
       expect(utils.getLogoUrl('BFT')).toBe(`${LOGO_BASE_URL}bft.png`);
+    });
+  });
+
+  describe('parseOpeningHours', () => {
+    it('should parse simple daily opening hours correctly', () => {
+      const rules = utils.parseOpeningHours('06:00 - 22:00');
+      expect(rules.length).toBe(1);
+      expect(rules[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(rules[0].ranges).toEqual([{ startMin: 360, endMin: 1320 }]);
+    });
+
+    it('should parse day-specific opening hours correctly', () => {
+      const rules = utils.parseOpeningHours('Mo-Fr: 06:00-22:00, Sa-So 08:00-20:00');
+      expect(rules.length).toBe(2);
+      expect(rules[0].days).toEqual([1, 2, 3, 4, 5]);
+      expect(rules[0].ranges).toEqual([{ startMin: 360, endMin: 1320 }]);
+      expect(rules[1].days).toEqual([6, 0]);
+      expect(rules[1].ranges).toEqual([{ startMin: 480, endMin: 1200 }]);
+    });
+
+    it('should parse comma-separated days correctly', () => {
+      const rules = utils.parseOpeningHours('Mo, Di, Mi: 07:00-20:00');
+      expect(rules.length).toBe(1);
+      expect(rules[0].days).toEqual([1, 2, 3]);
+      expect(rules[0].ranges).toEqual([{ startMin: 420, endMin: 1200 }]);
+    });
+  });
+
+  describe('getOpeningStatus', () => {
+    it('should return closes_soon when within 60 minutes of closing', () => {
+      const rules = utils.parseOpeningHours('06:00-22:00');
+      const now = new Date();
+      now.setHours(21);
+      now.setMinutes(30);
+      const res = utils.getOpeningStatus(rules, true, now);
+      expect(res.status).toBe('closing_soon');
+      expect(res.timeLabel).toBe('22:00');
+    });
+
+    it('should return open normally when not close to closing time', () => {
+      const rules = utils.parseOpeningHours('06:00-22:00');
+      const now = new Date();
+      now.setHours(12);
+      now.setMinutes(0);
+      const res = utils.getOpeningStatus(rules, true, now);
+      expect(res.status).toBe('open');
+    });
+
+    it('should return opening_soon with today label if it opens later today', () => {
+      const rules = utils.parseOpeningHours('08:00-22:00');
+      const now = new Date();
+      now.setHours(6);
+      now.setMinutes(0);
+      const res = utils.getOpeningStatus(rules, false, now);
+      expect(res.status).toBe('opening_soon');
+      expect(res.dayLabel).toBe('today');
+      expect(res.timeLabel).toBe('08:00');
+    });
+
+    it('should return opening_soon with tomorrow label if it opens tomorrow', () => {
+      const rules = utils.parseOpeningHours('Mo-Fr 08:00-22:00');
+      // Set to a Tuesday evening (2026-06-02 is Tuesday)
+      const fakeNow = new Date('2026-06-02T23:00:00');
+      const res = utils.getOpeningStatus(rules, false, fakeNow);
+      expect(res.status).toBe('opening_soon');
+      expect(res.dayLabel).toBe('tomorrow');
+      expect(res.timeLabel).toBe('08:00');
     });
   });
 });

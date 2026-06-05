@@ -50,9 +50,30 @@
     "tab_select": "Select",
     "tab_customize": "Customize",
     "show_address_info": "Address Display",
-    "show_address_detail": "Each switch controls the visibility of a part of the address. If none are selected, the address will be hidden."
+    "show_address_detail": "Each switch controls the visibility of a part of the address. If none are selected, the address will be hidden.",
+    "show_24_7_badge": "Show 24/7 Badge",
+    "show_opening_status": "Show Opening Status (Closes soon / Opens at)"
   },
   "card": {
-    "station_not_found": "Station not found: {station}"
+    "station_not_found": "Station not found: {station}",
+    "click_for_hours": "Click to show/hide opening hours",
+    "twenty_four_seven_badge": "24/7",
+    "closes_soon": "Closes soon",
+    "closes_at": "Closes at {time}",
+    "opens_at": "Opens at {time}",
+    "opens_tomorrow_at": "Opens tomorrow at {time}",
+    "opens_day_at": "Opens {day} at {time}",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "day_0": "Sunday",
+    "day_1": "Monday",
+    "day_2": "Tuesday",
+    "day_3": "Wednesday",
+    "day_4": "Thursday",
+    "day_5": "Friday",
+    "day_6": "Saturday",
+    "holiday": "Holiday",
+    "daily": "Daily",
+    "weekdays": "Weekdays"
   }
 }

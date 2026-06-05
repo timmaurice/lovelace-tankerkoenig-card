@@ -235,6 +235,14 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         selector: { boolean: {} },
       },
       {
+        name: 'show_24_7_badge',
+        selector: { boolean: {} },
+      },
+      {
+        name: 'show_opening_status',
+        selector: { boolean: {} },
+      },
+      {
         name: 'fuel_types',
         selector: {
           select: {
@@ -334,7 +342,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <ha-form
               .schema=${schema}
               .hass=${this.hass}
-              .data=${this._config}
+              .data=${{
+                show_24_7_badge: this._config.show_24_7_badge !== false,
+                show_opening_status: this._config.show_opening_status !== false,
+                ...this._config,
+              }}
               .computeLabel=${(s: { name: string }) =>
                 localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
               @value-changed=${this._valueChanged}
@@ -715,7 +727,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     }
 
     if (name || logo) {
-      const newStationConf: { device: string; name?: string; logo?: string } = { device: deviceId };
+      const newStationConf: {
+        device: string;
+        name?: string;
+        logo?: string;
+      } = { device: deviceId };
       if (name) newStationConf.name = name;
       if (logo) newStationConf.logo = logo;
       this._updateStation(index, newStationConf);

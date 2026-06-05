@@ -4,7 +4,18 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { localize } from './localize';
-import { fireEvent, formatDate, getLogoUrl } from './utils';
+import {
+  fireEvent,
+  formatDate,
+  getLogoUrl,
+  parseOpeningHours,
+  getOpeningStatus,
+  formatRawOpeningTimes,
+  parseRawOpeningTimes,
+  OpeningRule,
+  cleanOpeningHoursDisplay,
+  translateDays,
+} from './utils';
 import styles from './styles/card.styles.scss';
 
 export interface LovelaceHelpers {
@@ -44,6 +55,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @query('ha-card') private _card!: LovelaceCard;
   @state() private _config!: TankerkoenigCardConfig;
   @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
+  @state() private _expandedStations: Set<string> = new Set();
   private _stationCache: Record<string, Station> | null = null;
   private _watchedEntities: Set<string> = new Set();
 
@@ -136,8 +148,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   }
 
   protected shouldUpdate(changedProperties: Map<string | number | symbol, unknown>): boolean {
-    if (changedProperties.has('_config')) {
-      this._buildStationCache(this.hass, this._config);
+    if (
+      changedProperties.has('_config') ||
+      changedProperties.has('_expandedStations') ||
+      changedProperties.has('_priceChanges')
+    ) {
+      if (changedProperties.has('_config')) {
+        this._buildStationCache(this.hass, this._config);
+      }
       return true;
     }
 
@@ -169,6 +187,37 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   private _handleMoreInfo(entityId: string): void {
     fireEvent(this, 'hass-more-info', { entityId });
   }
+
+  private _toggleOpeningHours(stationId: string, event: Event): void {
+    event.stopPropagation();
+    const expanded = new Set<string>();
+    if (!this._expandedStations.has(stationId)) {
+      expanded.add(stationId);
+    }
+    this._expandedStations = expanded;
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener('click', this._closeAllTooltips);
+  }
+
+  protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
+    super.updated(changedProperties);
+    if (changedProperties.has('_expandedStations')) {
+      if (this._expandedStations.size > 0) {
+        document.addEventListener('click', this._closeAllTooltips);
+      } else {
+        document.removeEventListener('click', this._closeAllTooltips);
+      }
+    }
+  }
+
+  private _closeAllTooltips = (): void => {
+    if (this._expandedStations.size > 0) {
+      this._expandedStations = new Set();
+    }
+  };
 
   private async _fetchPriceChanges(): Promise<void> {
     if (!this._config || !this._config.show_price_changes) return;
@@ -311,6 +360,115 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               attributes.station_name ||
               attributes.friendly_name;
 
+            const stationConfig = this._config.stations.find((s) =>
+              typeof s === 'string' ? s === stationId : s.device === stationId,
+            );
+
+            const statusEntity = station.status ? this.hass.states[station.status] : null;
+            const twentyFourSevenAttr =
+              statusEntity?.attributes?.twenty_four_seven || statusEntity?.attributes?.twenty_four_seven_status;
+            const wholeDayAttr = statusEntity?.attributes?.whole_day;
+            const openingHoursAttr =
+              statusEntity?.attributes?.opening_hours ||
+              statusEntity?.attributes?.opening_times ||
+              statusEntity?.attributes?.opening_hours_status;
+
+            const is247 =
+              twentyFourSevenAttr === true ||
+              wholeDayAttr === true ||
+              (typeof openingHoursAttr === 'string' && /24\/7|24h/i.test(openingHoursAttr));
+
+            let openingHours = '';
+            let rules: OpeningRule[] = [];
+
+            if (Array.isArray(openingHoursAttr)) {
+              openingHours = formatRawOpeningTimes(openingHoursAttr);
+              rules = parseRawOpeningTimes(openingHoursAttr);
+            } else if (typeof openingHoursAttr === 'string') {
+              openingHours = cleanOpeningHoursDisplay(openingHoursAttr);
+              rules = parseOpeningHours(openingHoursAttr);
+            }
+
+            let badgeHtml: TemplateResult | string = '';
+            const show247Badge = this._config.show_24_7_badge !== false;
+            const showOpeningStatus = this._config.show_opening_status !== false;
+
+            const clickHandler = openingHours ? (e: Event) => this._toggleOpeningHours(stationId, e) : undefined;
+            const badgeTitle = openingHours
+              ? localize(this.hass, 'component.tankerkoenig-card.card.click_for_hours')
+              : '';
+
+            const handleBadgeKeydown = openingHours
+              ? (e: KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this._toggleOpeningHours(stationId, e);
+                  }
+                }
+              : undefined;
+
+            let badgeText = '';
+            let badgeClass = '';
+
+            if (is247) {
+              if (show247Badge) {
+                badgeClass = 'badge-247';
+                badgeText = localize(this.hass, 'component.tankerkoenig-card.card.twenty_four_seven_badge');
+              }
+            } else if (openingHours && showOpeningStatus) {
+              const status = getOpeningStatus(rules, isOpen);
+              if (status.status === 'closing_soon') {
+                badgeClass = 'badge-closing-soon';
+                badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closes_soon');
+              } else if (status.status === 'open') {
+                badgeClass = 'badge-open';
+                badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closes_at', {
+                  time: status.timeLabel || '',
+                });
+              } else if (status.status === 'opening_soon') {
+                badgeClass = 'badge-closed';
+                if (status.dayLabel === 'today') {
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_at', {
+                    time: status.timeLabel || '',
+                  });
+                } else if (status.dayLabel === 'tomorrow') {
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_tomorrow_at', {
+                    time: status.timeLabel || '',
+                  });
+                } else if (status.dayLabel) {
+                  const dayName = localize(this.hass, `component.tankerkoenig-card.card.day_${status.dayLabel}`);
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_day_at', {
+                    day: dayName,
+                    time: status.timeLabel || '',
+                  });
+                } else {
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closed');
+                }
+              } else {
+                badgeClass = isOpen ? 'badge-open' : 'badge-closed';
+                badgeText = isOpen
+                  ? localize(this.hass, 'component.tankerkoenig-card.card.open')
+                  : localize(this.hass, 'component.tankerkoenig-card.card.closed');
+              }
+            } else if (showOpeningStatus) {
+              badgeClass = isOpen ? 'badge-open' : 'badge-closed';
+              badgeText = isOpen
+                ? localize(this.hass, 'component.tankerkoenig-card.card.open')
+                : localize(this.hass, 'component.tankerkoenig-card.card.closed');
+            }
+
+            if (badgeText) {
+              badgeHtml = html`<span
+                class="badge ${badgeClass}"
+                @click=${clickHandler}
+                @keydown=${handleBadgeKeydown}
+                tabindex=${openingHours ? '0' : '-1'}
+                role=${openingHours ? 'button' : 'none'}
+                title=${badgeTitle}
+                >${badgeText}</span
+              >`;
+            }
+
             const capitalize = (str: string): string =>
               str ? str.toLowerCase().replace(/(?:^|\s|["'([{]|-)+\S/g, (match) => match.toUpperCase()) : '';
 
@@ -366,7 +524,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             }
 
             return html`
-              <div class="station ${isOpen ? 'open' : 'closed'}" tabindex="0">
+              <div
+                class="station ${classMap({
+                  open: isOpen,
+                  closed: !isOpen,
+                  'has-expanded-tooltip': this._expandedStations.has(stationId),
+                })}"
+                tabindex="0"
+              >
                 <div class="logo-container">
                   ${html`<img
                     class="logo"
@@ -377,7 +542,28 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 </div>
                 <div class="info">
                   <div class="row-1">
-                    <span class="station-name">${stationName}</span>
+                    <div class="station-name-wrapper">
+                      <span class="station-name">${stationName}</span>
+                    </div>
+                    <div class="badge-container">
+                      ${badgeHtml}
+                      ${this._expandedStations.has(stationId) && openingHours
+                        ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
+                            ${openingHours.split(/\s*•\s*/).map((line) => {
+                              const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
+                              const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
+                              const hours = match ? match[2].trim() : '';
+                              const translatedDays = translateDays(days, this.hass);
+                              return html`
+                                <div class="opening-hours-line">
+                                  <span class="opening-hours-days">${translatedDays}</span>
+                                  ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
+                                </div>
+                              `;
+                            })}
+                          </div>`
+                        : ''}
+                    </div>
                   </div>
                   ${address ? html`<div class="row-2"><span class="address">${addressHtml}</span></div>` : ''}
                   ${this._config.show_last_updated
@@ -416,11 +602,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     const scale = (this._config.font_scale || 100) / 100;
 
                     const priceStyle = {
-                      'font-size': `${1.5 * scale}em`,
+                      'font-size': `${1.2 * scale}em`,
                     };
 
                     const fuelTypeStyle = {
-                      'font-size': `${1 * scale}em`,
+                      'font-size': `${0.85 * scale}em`,
                     };
 
                     const priceChangeIndicator =
@@ -430,7 +616,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       class="price-container"
                       style=${styleMap(containerStyle)}
                       @click=${() => this._handleMoreInfo(entityId)}
+                      @keydown=${(e: KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          this._handleMoreInfo(entityId);
+                        }
+                      }}
                       tabindex="0"
+                      role="button"
                     >
                       <div class="fuel-header">
                         <span class="fuel-type" style=${styleMap(fuelTypeStyle)}

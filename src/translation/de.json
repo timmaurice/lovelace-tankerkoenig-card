@@ -49,9 +49,30 @@
     "tab_select": "Auswählen",
     "tab_customize": "Anpassen",
     "show_address_info": "Adressanzeige",
-    "show_address_detail": "Jeder Schalter steuert die Sichtbarkeit eines Teils der Adresse. Wenn keiner ausgewählt ist, wird die Adresse ausgeblendet."
+    "show_address_detail": "Jeder Schalter steuert die Sichtbarkeit eines Teils der Adresse. Wenn keiner ausgewählt ist, wird die Adresse ausgeblendet.",
+    "show_24_7_badge": "24/7-Badge anzeigen",
+    "show_opening_status": "Öffnungsstatus anzeigen (Schließt bald / Öffnet um)"
   },
   "card": {
-    "station_not_found": "Tankstelle nicht gefunden: {station}"
+    "station_not_found": "Tankstelle nicht gefunden: {station}",
+    "click_for_hours": "Klicken für Öffnungszeiten",
+    "twenty_four_seven_badge": "24/7",
+    "closes_soon": "Schließt bald",
+    "closes_at": "Schließt um {time}",
+    "opens_at": "Öffnet um {time}",
+    "opens_tomorrow_at": "Öffnet morgen um {time}",
+    "opens_day_at": "Öffnet am {day} um {time}",
+    "today": "heute",
+    "tomorrow": "morgen",
+    "day_0": "Sonntag",
+    "day_1": "Montag",
+    "day_2": "Dienstag",
+    "day_3": "Mittwoch",
+    "day_4": "Donnerstag",
+    "day_5": "Freitag",
+    "day_6": "Samstag",
+    "holiday": "Feiertag",
+    "daily": "Täglich",
+    "weekdays": "Werktags"
   }
 }

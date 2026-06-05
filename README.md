@@ -163,6 +163,8 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `price_bg_color`            | string                              | `var(--divider-color)`      | The background color of the price display.                                                                        |
 | `price_font_color`          | string                              | `var(--primary-text-color)` | The font color of the price display.                                                                              |
 | `font_scale`                | number                              | `100`                       | A percentage to scale the font size of the price and fuel type (e.g., `80` for 80%).                              |
+| `show_24_7_badge`           | boolean                             | `true`                      | Show 24/7 Badge for open 24/7 stations.                                                                           |
+| `show_opening_status`       | boolean                             | `true`                      | Show Opening Status badge (Closes soon / Opens at).                                                               |
 
 ### Station Object Parameters
 
@@ -182,6 +184,8 @@ show_postcode: true
 show_city: true
 show_last_updated: true
 show_price_changes: true
+show_24_7_badge: true
+show_opening_status: true
 sort_by: e10
 show_only_cheapest: true
 show_only_cheapest_count: 3
