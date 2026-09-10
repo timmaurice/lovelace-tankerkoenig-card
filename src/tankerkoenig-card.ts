@@ -264,9 +264,16 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._expandedStations = expanded;
   }
 
+  /**
+   * Edit mode moves a card in the DOM, which disconnects and reconnects it. The document
+   * listener that closes an open callout does not survive that, so the callout came back
+   * open with nothing left to dismiss it. Nothing of the card is on screen while it is
+   * detached, so the expansion is dropped instead of being carried across the move.
+   */
   public disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener('click', this._closeAllTooltips);
+    this._expandedStations = new Set();
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {

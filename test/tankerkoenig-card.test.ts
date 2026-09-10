@@ -858,6 +858,38 @@ describe('TankerkoenigCard', () => {
       expect(callout).toBeNull();
       expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(false);
     });
+
+    it('should not come back with an open callout after the card is moved', async () => {
+      // Edit mode moves a card in the DOM. The document listener that closes the callout does
+      // not survive that, so an open callout came back with nothing left to dismiss it.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const open = async () => {
+        element.shadowRoot
+          ?.querySelector('.badge')
+          ?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+        await element.updateComplete;
+      };
+      await open();
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).not.toBeNull();
+
+      // The move itself: out of the document and straight back in.
+      const parent = element.parentElement as HTMLElement;
+      parent.removeChild(element);
+      parent.appendChild(element);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).toBeNull();
+
+      // And clicking outside still closes a callout opened after the move.
+      await open();
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).not.toBeNull();
+      document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).toBeNull();
+    });
   });
 });
 
