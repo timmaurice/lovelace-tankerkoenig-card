@@ -362,16 +362,20 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             </div>
 
             <div class="tab-content">
-              ${this._selectedTab === 0
-                ? html` <ha-form
-                    .schema=${this._getStationsSchema()}
-                    .hass=${this.hass}
-                    .data=${this._stationsData}
-                    .computeLabel=${(s: { name: string }) =>
-                      localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
-                    @value-changed=${this._valueChanged}
-                  ></ha-form>`
-                : html` ${(this._config.stations || []).map((station, index) => this._renderStation(station, index))} `}
+              ${
+                this._selectedTab === 0
+                  ? html` <ha-form
+                      .schema=${this._getStationsSchema()}
+                      .hass=${this.hass}
+                      .data=${this._stationsData}
+                      .computeLabel=${(s: { name: string }) =>
+                        localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
+                      @value-changed=${this._valueChanged}
+                    ></ha-form>`
+                  : html`
+                      ${(this._config.stations || []).map((station, index) => this._renderStation(station, index))}
+                    `
+              }
             </div>
           </div>
 
@@ -630,9 +634,9 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
 
     return html`
       <div
-        class="station-row ${this._draggedIndex === index ? 'dragged' : ''} ${isDropAbove
-          ? 'drop-above'
-          : ''} ${isDropBelow ? 'drop-below' : ''}"
+        class="station-row ${this._draggedIndex === index ? 'dragged' : ''} ${
+          isDropAbove ? 'drop-above' : ''
+        } ${isDropBelow ? 'drop-below' : ''}"
         draggable="true"
         @dragstart=${(e: DragEvent) => this._handleDragStart(e, index)}
         @dragend=${this._handleDragEnd}

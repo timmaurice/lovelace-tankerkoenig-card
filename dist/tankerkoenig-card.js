@@ -93,19 +93,22 @@ const ge=1,_e=e=>(...t)=>({_$litDirective$:e,values:t});let fe=class{constructor
                   </div>
                   ${N?B`<div class="row-2"><span class="address">${j}</span></div>`:""}
                   ${y||this._config.show_last_updated?B`<div class="row-3">
-                        ${y?B`<div class="badge-container">
-                              ${y}
-                              ${this._expandedStations.has(o)&&f?B`<div class="opening-hours-callout" @click=${e=>e.stopPropagation()}>
-                                    ${f.split(/\s*•\s*/).map(e=>{const t=e.match(/(.*?)(\d{1,2}:\d{2}.*)/),o=t?t[1].replace(/:\s*$/,"").trim():e,s=t?t[2].trim():"",i=function(e,t){return e?e.replace(/[a-zA-ZäöüÄÖÜß]+/g,e=>{const o=e.toLowerCase(),s=Ve[o];if(s){const o=ke(t,`component.tankerkoenig-card.card.${s}`);if(o&&!o.startsWith("component."))return e[0]===e[0].toUpperCase()?o.charAt(0).toUpperCase()+o.slice(1):o}return e}):""}(o,this.hass);return B`
-                                        <div class="opening-hours-line">
-                                          <span class="opening-hours-days">${i}</span>
-                                          ${s?B`<span class="opening-hours-time">${s}</span>`:""}
-                                        </div>
-                                      `})}
-                                  </div>`:""}
-                            </div>`:""}
-                        ${this._config.show_last_updated?B`<span class="last-updated">${function(e,t){const o=new Date(e),s=new Date,i=o.getDate()===s.getDate()&&o.getMonth()===s.getMonth()&&o.getFullYear()===s.getFullYear(),n=ze(t),a={hour:!1===n?"2-digit":"numeric",minute:"2-digit",...void 0===n?{}:{hour12:n}};return i||Object.assign(a,{year:"numeric",month:"short",day:"2-digit"}),o.toLocaleString(Ce(t),a)}(r.last_updated,this.hass)}</span>`:""}
-                      </div>`:""}
+                          ${y?B`<div class="badge-container">
+                                  ${y}
+                                  ${this._expandedStations.has(o)&&f?B`<div
+                                          class="opening-hours-callout"
+                                          @click=${e=>e.stopPropagation()}
+                                        >
+                                          ${f.split(/\s*•\s*/).map(e=>{const t=e.match(/(.*?)(\d{1,2}:\d{2}.*)/),o=t?t[1].replace(/:\s*$/,"").trim():e,s=t?t[2].trim():"",i=function(e,t){return e?e.replace(/[a-zA-ZäöüÄÖÜß]+/g,e=>{const o=e.toLowerCase(),s=Ve[o];if(s){const o=ke(t,`component.tankerkoenig-card.card.${s}`);if(o&&!o.startsWith("component."))return e[0]===e[0].toUpperCase()?o.charAt(0).toUpperCase()+o.slice(1):o}return e}):""}(o,this.hass);return B`
+                                              <div class="opening-hours-line">
+                                                <span class="opening-hours-days">${i}</span>
+                                                ${s?B`<span class="opening-hours-time">${s}</span>`:""}
+                                              </div>
+                                            `})}
+                                        </div>`:""}
+                                </div>`:""}
+                          ${this._config.show_last_updated?B`<span class="last-updated">${function(e,t){const o=new Date(e),s=new Date,i=o.getDate()===s.getDate()&&o.getMonth()===s.getMonth()&&o.getFullYear()===s.getFullYear(),n=ze(t),a={hour:!1===n?"2-digit":"numeric",minute:"2-digit",...void 0===n?{}:{hour12:n}};return i||Object.assign(a,{year:"numeric",month:"short",day:"2-digit"}),o.toLocaleString(Ce(t),a)}(r.last_updated,this.hass)}</span>`:""}
+                        </div>`:""}
                 </div>
                 <div
                   class="prices ${ye({"prices-side-by-side":this._config.show_prices_side_by_side||!1})}"
@@ -173,12 +176,14 @@ function(e){return(t,o,s)=>((e,t,o)=>(o.configurable=!0,o.enumerable=!0,Reflect.
 
             <div class="tab-content">
               ${0===this._selectedTab?B` <ha-form
-                    .schema=${this._getStationsSchema()}
-                    .hass=${this.hass}
-                    .data=${this._stationsData}
-                    .computeLabel=${e=>ke(this.hass,`component.tankerkoenig-card.editor.${e.name}`)}
-                    @value-changed=${this._valueChanged}
-                  ></ha-form>`:B` ${(this._config.stations||[]).map((e,t)=>this._renderStation(e,t))} `}
+                      .schema=${this._getStationsSchema()}
+                      .hass=${this.hass}
+                      .data=${this._stationsData}
+                      .computeLabel=${e=>ke(this.hass,`component.tankerkoenig-card.editor.${e.name}`)}
+                      @value-changed=${this._valueChanged}
+                    ></ha-form>`:B`
+                      ${(this._config.stations||[]).map((e,t)=>this._renderStation(e,t))}
+                    `}
             </div>
           </div>
 
