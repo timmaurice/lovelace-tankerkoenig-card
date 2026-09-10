@@ -54,15 +54,36 @@ describe('TankerkoenigCardEditor', () => {
       expect(panel.expanded).toBe(false);
       // The panel's content lives in its light DOM and must actually be there.
       expect(panel.querySelector('.expansion-content ha-form')).not.toBeNull();
+    });
 
-      // NOTE: this deliberately does not exercise the panels' @click toggle handlers. Those
-      // check `e.target.classList.contains('expansion-panel-summary')`, and the real summary
-      // element lives inside ha-expansion-panel's shadow root — which is only present in a real
-      // Home Assistant frontend, not here. Synthesising a `.expansion-panel-summary` element in
-      // the test and clicking it would only prove that the delegated listener fires for a target
-      // the test built itself; it would say nothing about production, where shadow-DOM
-      // retargeting makes `e.target` the <ha-expansion-panel> host instead. See the open issue
-      // about the toggle handlers in src/editor.ts.
+    it('should follow the panel when Home Assistant toggles it', async () => {
+      await element.updateComplete;
+      const panel = element.shadowRoot?.querySelector('ha-expansion-panel') as HTMLElement;
+
+      // ha-expansion-panel opens itself and announces it with `expanded-changed`. The editor
+      // used to listen for a click whose target carried the class 'expansion-panel-summary',
+      // but that element lives inside the panel's own shadow root: retargeting makes
+      // `e.target` the <ha-expansion-panel> host, so the condition was never true and the
+      // editor's state never followed the panel. On the next render Lit then wrote its stale
+      // `.expanded` back and the panel snapped shut under the user.
+      panel.dispatchEvent(new CustomEvent('expanded-changed', { detail: { expanded: true } }));
+      await element.updateComplete;
+      expect((element as unknown as { _addressExpanded: boolean })._addressExpanded).toBe(true);
+
+      panel.dispatchEvent(new CustomEvent('expanded-changed', { detail: { expanded: false } }));
+      await element.updateComplete;
+      expect((element as unknown as { _addressExpanded: boolean })._addressExpanded).toBe(false);
+    });
+
+    it('should not toggle a panel when a click merely bubbles out of its content', async () => {
+      await element.updateComplete;
+      const panel = element.shadowRoot?.querySelector('ha-expansion-panel') as HTMLElement;
+      const content = panel.querySelector('.expansion-content') as HTMLElement;
+
+      content.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      expect((element as unknown as { _addressExpanded: boolean })._addressExpanded).toBe(false);
     });
   });
 
@@ -89,6 +110,111 @@ describe('TankerkoenigCardEditor', () => {
       const logosAfter = element.shadowRoot?.querySelectorAll<HTMLImageElement>('.logo');
       const stillBroken = Array.from(logosAfter ?? []).filter((img) => img.getAttribute('src') === brokenUrl);
       expect(stillBroken).toHaveLength(0);
+    });
+  });
+
+  describe('Saved configuration', () => {
+    const savedConfig = (): TankerkoenigCardConfig =>
+      (fireEventSpy.mock.calls.at(-1)?.[2] as { config: TankerkoenigCardConfig }).config;
+
+    let fireEventSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      fireEventSpy = vi.spyOn(utils, 'fireEvent');
+    });
+
+    afterEach(() => {
+      fireEventSpy.mockRestore();
+    });
+
+    it('should not write a value that is already the default', async () => {
+      // ha-form is handed a fully populated data object so its toggles sit right, and it
+      // emits all of it back. Storing those keys filled the YAML with restated defaults.
+      element['_valueChanged']({
+        detail: { value: { show_street: true, show_postcode: true, show_city: true, show_price_changes: true } },
+      });
+
+      const config = savedConfig();
+      expect(config.show_price_changes).toBe(true);
+      expect('show_street' in config).toBe(false);
+      expect('show_postcode' in config).toBe(false);
+      expect('show_city' in config).toBe(false);
+    });
+
+    it('should remove a key again when the option is switched back to its default', async () => {
+      element.setConfig({ ...config, show_price_changes: true });
+      element['_valueChanged']({ detail: { value: { show_price_changes: false } } });
+
+      expect('show_price_changes' in savedConfig()).toBe(false);
+    });
+
+    it('should drop a cleared colour rather than storing an empty string', async () => {
+      element.setConfig({ ...config, price_bg_color: 'rgb(1, 2, 3)' });
+      element['_valueChanged']({ detail: { value: { price_bg_color: '' } } });
+
+      expect('price_bg_color' in savedConfig()).toBe(false);
+    });
+
+    it('should not store a font scale of 100, which is what the card already uses', async () => {
+      element.setConfig({ ...config, font_scale: 120 });
+      element['_valueChanged']({ detail: { value: { font_scale: 100 } } });
+
+      expect('font_scale' in savedConfig()).toBe(false);
+    });
+
+    it('should drop an empty station entry instead of adding it', async () => {
+      // A picker opened and closed without a choice hands back an empty entry, which was
+      // saved and then rendered by the card as a station that cannot be found.
+      element['_valueChanged']({ detail: { value: { stations: ['device-1', '', 'device-2'] } } });
+
+      expect(savedConfig().stations).toEqual(['device-1', 'device-2']);
+    });
+
+    it('should keep a customised station intact when the list is edited', async () => {
+      element.setConfig({ ...config, stations: [{ device: 'device-1', name: 'My station' }, 'device-2', 'device-3'] });
+      element['_valueChanged']({ detail: { value: { stations: ['device-2', 'device-1'] } } });
+
+      expect(savedConfig().stations).toEqual(['device-2', { device: 'device-1', name: 'My station' }]);
+    });
+
+    it('should prune defaults on every path out of the editor, not just the forms', async () => {
+      element.setConfig({ ...config, show_city: true, stations: ['device-1', 'device-2', 'device-3'] });
+      element['_removeStation'](2);
+
+      const saved = savedConfig();
+      expect(saved.stations).toEqual(['device-1', 'device-2']);
+      expect('show_city' in saved).toBe(false);
+    });
+  });
+
+  describe('Customize dialog', () => {
+    it('should store a name and a logo on the station it was opened for', async () => {
+      const fireEventSpy = vi.spyOn(utils, 'fireEvent');
+      element['_showCustomizeDialog']('device-2', 1);
+      element['_customizeNameInputValue'] = 'Corner station';
+      element['_customizeInputValue'] = 'https://example.com/logo.png';
+      element['_confirmCustomize']();
+
+      const saved = (fireEventSpy.mock.calls.at(-1)?.[2] as { config: TankerkoenigCardConfig }).config;
+      expect(saved.stations?.[1]).toEqual({
+        device: 'device-2',
+        name: 'Corner station',
+        logo: 'https://example.com/logo.png',
+      });
+      fireEventSpy.mockRestore();
+    });
+
+    it('should fall back to the plain device id when both fields are cleared', async () => {
+      const fireEventSpy = vi.spyOn(utils, 'fireEvent');
+      element.setConfig({ ...config, stations: ['device-1', { device: 'device-2', name: 'Corner' }, 'device-3'] });
+      element['_showCustomizeDialog']({ device: 'device-2', name: 'Corner' }, 1);
+      element['_customizeNameInputValue'] = '';
+      element['_customizeInputValue'] = '';
+      element['_confirmCustomize']();
+
+      const saved = (fireEventSpy.mock.calls.at(-1)?.[2] as { config: TankerkoenigCardConfig }).config;
+      expect(saved.stations?.[1]).toBe('device-2');
+      fireEventSpy.mockRestore();
     });
   });
 
