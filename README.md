@@ -251,8 +251,6 @@ When you're done, you can clean up the environment by running `npm run docker:st
 
 For further assistance or to [report issues](https://github.com/timmaurice/lovelace-tankerkoenig-card/issues), please visit the [GitHub repository](https://github.com/timmaurice/lovelace-tankerkoenig-card).
 
-![Star History Chart](https://api.star-history.com/svg?repos=timmaurice/lovelace-tankerkoenig-card&type=Date)
-
 ## ☕ Support My Work
 
 [<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="30" />](https://www.buymeacoffee.com/timmaurice)
