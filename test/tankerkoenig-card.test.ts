@@ -1214,3 +1214,22 @@ describe('Duplicate resource registration', () => {
     expect(entries).toHaveLength(1);
   });
 });
+
+describe('Translations', () => {
+  const languages = ['de', 'en', 'uk'] as const;
+
+  const flatten = (value: unknown, prefix = ''): string[] =>
+    typeof value === 'object' && value !== null
+      ? Object.entries(value).flatMap(([key, child]) => flatten(child, prefix ? `${prefix}.${key}` : key))
+      : [prefix];
+
+  it('should carry the same keys in every language', async () => {
+    // German was missing editor.show_address, which English and Ukrainian both had, so a
+    // German user fell through to the English label for it.
+    const files = await Promise.all(languages.map((language) => import(`../src/translation/${language}.json`)));
+    const keys = files.map((file) => flatten(file.default).sort());
+
+    expect(keys[0]).toEqual(keys[1]);
+    expect(keys[1]).toEqual(keys[2]);
+  });
+});

@@ -9,6 +9,7 @@
     },
     "title": "Titel (Optional)",
     "stations": "Tankstellen",
+    "show_address": "Stationsadresse anzeigen",
     "show_street": "Straße anzeigen",
     "show_postcode": "Postleitzahl anzeigen",
     "show_city": "Stadt anzeigen",
