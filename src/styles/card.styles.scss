@@ -143,7 +143,8 @@
   white-space: nowrap;
   width: 100%;
 
-  &:hover {
+  // Only names the card measured as overflowing get the marquee; see _markOverflowingNames.
+  &.can-marquee:hover {
     animation: marquee 5s linear infinite;
     overflow: visible;
     width: fit-content;
@@ -179,5 +180,28 @@
   to {
     opacity: 1;
     transform: translate(-50%, 0);
+  }
+}
+
+// Everything that moves on its own is off for readers who ask their system for less motion.
+@media (prefers-reduced-motion: reduce) {
+  .station-name.can-marquee:hover {
+    animation: none;
+  }
+
+  .opening-hours-callout {
+    animation: none;
+  }
+
+  .station,
+  .badge,
+  .price-container {
+    transition: none;
+  }
+
+  .badge:active,
+  .price-container:hover,
+  .price-container:active {
+    transform: none;
   }
 }

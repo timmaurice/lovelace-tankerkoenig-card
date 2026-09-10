@@ -545,6 +545,71 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Accessibility and motion', () => {
+    it('should name the focusable station group instead of leaving it unlabelled', async () => {
+      const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const stationEl = element.shadowRoot?.querySelector('.station');
+      expect(stationEl?.getAttribute('tabindex')).toBe('0');
+      expect(stationEl?.getAttribute('role')).toBe('group');
+      expect(stationEl?.getAttribute('aria-label')).toBe('ARAL Tankstelle');
+    });
+
+    it('should not make the card itself a tab stop', async () => {
+      // ha-card has no behaviour of its own; a focus stop that does nothing is noise for
+      // anyone moving through the dashboard by keyboard.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('ha-card')?.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it('should only expose the badge as a button when it opens the opening hours', async () => {
+      const plain = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, plain);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.hasAttribute('role')).toBe(false);
+      expect(badge?.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it('should report the callout state on the badge button', async () => {
+      const station = createMockStation('shell', 'Shell', 'Shell', { e5: '1.899' });
+      station.states['binary_sensor.shell_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.getAttribute('role')).toBe('button');
+      expect(badge?.getAttribute('aria-expanded')).toBe('false');
+
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.badge')?.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should only mark a station name for the marquee when it overflows', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      // jsdom reports zero for both, so the widths are stubbed the way a browser reports
+      // them: the marquee must stay off a name that fits.
+      const name = element.shadowRoot?.querySelector<HTMLElement>('.station-name') as HTMLElement;
+      const stub = (scrollWidth: number, clientWidth: number) => {
+        Object.defineProperty(name, 'scrollWidth', { value: scrollWidth, configurable: true });
+        Object.defineProperty(name, 'clientWidth', { value: clientWidth, configurable: true });
+      };
+
+      stub(100, 200);
+      element['_markOverflowingNames']();
+      expect(name.classList.contains('can-marquee')).toBe(false);
+
+      stub(400, 200);
+      element['_markOverflowingNames']();
+      expect(name.classList.contains('can-marquee')).toBe(true);
+    });
+  });
+
   describe('Custom Logo', () => {
     it('should use the default logo if no custom logo is provided', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });

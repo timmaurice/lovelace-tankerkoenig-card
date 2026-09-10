@@ -3,6 +3,7 @@ import { property, state, query } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { localize } from './localize';
 import {
   fireEvent,
@@ -252,6 +253,22 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         document.removeEventListener('click', this._closeAllTooltips);
       }
     }
+    this._markOverflowingNames();
+  }
+
+  /**
+   * Marks the station names that do not fit their row.
+   *
+   * The marquee used to be attached to `:hover` for every name, so a name that fits scrolled
+   * sideways for no reason the moment the pointer touched it. Overflow is not expressible in
+   * CSS, so it has to be measured - here, after each render. A container that is resized
+   * without a re-render keeps the previous verdict, which is a far smaller wart than
+   * animating text that has nowhere to go.
+   */
+  private _markOverflowingNames(): void {
+    this.shadowRoot?.querySelectorAll<HTMLElement>('.station-name').forEach((name) => {
+      name.classList.toggle('can-marquee', name.scrollWidth > name.clientWidth);
+    });
   }
 
   private _closeAllTooltips = (): void => {
@@ -399,7 +416,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
 
     return html`
-      <ha-card .header=${this._config.title} tabindex="0">
+      <ha-card .header=${this._config.title}>
         <div class="card-content">
           ${stationEntries.map(([stationId, station]) => {
             // The station's attributes - name, address, brand - are read off whichever of its
@@ -535,12 +552,17 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             }
 
             if (badgeText) {
+              // Only a badge that actually opens the opening-hours callout is a button. The
+              // rest is a plain label: giving it role="none" and a tabindex stripped its text
+              // from the accessibility tree for no gain.
+              const isBadgeButton = Boolean(openingHours);
               badgeHtml = html`<span
                 class="badge ${badgeClass}"
                 @click=${clickHandler}
                 @keydown=${handleBadgeKeydown}
-                tabindex=${openingHours ? '0' : '-1'}
-                role=${openingHours ? 'button' : 'none'}
+                tabindex=${ifDefined(isBadgeButton ? '0' : undefined)}
+                role=${ifDefined(isBadgeButton ? 'button' : undefined)}
+                aria-expanded=${ifDefined(isBadgeButton ? String(this._expandedStations.has(stationId)) : undefined)}
                 title=${badgeTitle}
                 >${badgeText}</span
               >`;
@@ -616,6 +638,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   'has-expanded-tooltip': this._expandedStations.has(stationId),
                 })}"
                 tabindex="0"
+                role="group"
+                aria-label=${stationName}
               >
                 <div class="logo-container">
                   ${html`<img
