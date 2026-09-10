@@ -683,39 +683,34 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   ${
                     badgeHtml || this._config.show_last_updated
                       ? html`<div class="row-3">
-                          ${
-                            badgeHtml
-                              ? html`<div class="badge-container">
-                                  ${badgeHtml}
-                                  ${
-                                    this._expandedStations.has(stationId) && openingHours
-                                      ? html`<div
-                                          class="opening-hours-callout"
-                                          @click=${(e: Event) => e.stopPropagation()}
-                                        >
-                                          ${openingHours.split(/\s*•\s*/).map((line) => {
-                                            const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
-                                            const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
-                                            const hours = match ? match[2].trim() : '';
-                                            const translatedDays = translateDays(days, this.hass);
-                                            return html`
-                                              <div class="opening-hours-line">
-                                                <span class="opening-hours-days">${translatedDays}</span>
-                                                ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
-                                              </div>
-                                            `;
-                                          })}
-                                        </div>`
-                                      : ''
-                                  }
-                                </div>`
-                              : ''
-                          }
+                          ${badgeHtml ? html`<div class="badge-container">${badgeHtml}</div>` : ''}
                           ${
                             this._config.show_last_updated
                               ? html`<span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>`
                               : ''
                           }
+                        </div>`
+                      : ''
+                  }
+                  <!--
+                    A row of its own below the badges, not a tooltip floating over the badge:
+                    an absolutely positioned callout covered the next station in the list.
+                  -->
+                  ${
+                    this._expandedStations.has(stationId) && openingHours
+                      ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
+                          ${openingHours.split(/\s*•\s*/).map((line) => {
+                            const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
+                            const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
+                            const hours = match ? match[2].trim() : '';
+                            const translatedDays = translateDays(days, this.hass);
+                            return html`
+                              <div class="opening-hours-line">
+                                <span class="opening-hours-days">${translatedDays}</span>
+                                ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
+                              </div>
+                            `;
+                          })}
                         </div>`
                       : ''
                   }

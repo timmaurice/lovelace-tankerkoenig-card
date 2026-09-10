@@ -48,10 +48,6 @@
       opacity: 0.5;
     }
   }
-
-  &.has-expanded-tooltip {
-    z-index: 10;
-  }
 }
 
 .logo-container {
@@ -172,14 +168,14 @@
   }
 }
 
-@keyframes fadeIn {
+@keyframes calloutFadeIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -4px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: none;
   }
 }
 

@@ -1,6 +1,10 @@
+// Deliberately in the flow rather than floating over the list: as an absolutely positioned
+// tooltip it covered the next station row, hiding that station's name and address until it
+// was dismissed - worst on a phone, where the rows are closest together. In the flow it
+// grows its own row instead, and the list below stays readable.
 .opening-hours-callout {
   align-items: flex-start;
-  animation: fadeIn 0.15s ease-in-out;
+  animation: calloutFadeIn 0.15s ease-in-out;
   background-color: var(
     --tooltip-background-color,
     var(--secondary-background-color, var(--card-background-color, #202020))
@@ -14,14 +18,11 @@
   flex-direction: column;
   font-size: 0.82em;
   gap: 6px;
-  left: 50%;
-  max-width: 320px;
+  margin-top: 8px;
+  max-width: 100%;
   padding: 10px 14px;
-  position: absolute;
-  top: 24px;
-  transform: translateX(-50%);
+  position: relative;
   width: max-content;
-  z-index: 99;
 
   .opening-hours-line {
     align-items: center;
@@ -49,10 +50,9 @@
     border-style: solid;
     border-width: 0 6px 6px 6px;
     content: '';
-    left: 50%;
+    left: 12px;
     position: absolute;
     top: -6px;
-    transform: translateX(-50%);
   }
 
   &::after {
@@ -62,9 +62,8 @@
     border-style: solid;
     border-width: 0 6px 6px 6px;
     content: '';
-    left: 50%;
+    left: 12px;
     position: absolute;
     top: -5px;
-    transform: translateX(-50%);
   }
 }
