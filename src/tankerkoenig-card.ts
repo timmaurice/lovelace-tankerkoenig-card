@@ -707,7 +707,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   // rendered at full contrast, because dimming it reads as "closed".
                   closed: isOpen === false,
                   unknown: isOpen === undefined,
-                  'has-expanded-tooltip': this._expandedStations.has(stationId),
                 })}"
                 role="group"
                 aria-label=${stationName}

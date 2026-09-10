@@ -924,8 +924,6 @@ describe('TankerkoenigCard', () => {
       // Verify callout is hidden initially
       let callout = element.shadowRoot?.querySelector('.opening-hours-callout');
       expect(callout).toBeNull();
-      const stationDiv = element.shadowRoot?.querySelector('.station');
-      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(false);
 
       // Find and click the status badge
       const badge = element.shadowRoot?.querySelector('.badge');
@@ -938,7 +936,6 @@ describe('TankerkoenigCard', () => {
       expect(callout).not.toBeNull();
       expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
       expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
-      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(true);
 
       // Click the badge again
       badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
@@ -947,7 +944,6 @@ describe('TankerkoenigCard', () => {
       // Verify callout is hidden again
       callout = element.shadowRoot?.querySelector('.opening-hours-callout');
       expect(callout).toBeNull();
-      expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(false);
     });
 
     it('should not come back with an open callout after the card is moved', async () => {
