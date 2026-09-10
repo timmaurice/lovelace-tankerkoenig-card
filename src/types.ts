@@ -5,10 +5,13 @@ export interface HassDevice {
   name_by_user?: string;
 }
 
+// The serialised values, not the frontend's enum member names: TimeFormat.am_pm is stored as
+// '12' and TimeFormat.twenty_four as '24', and both enums carry a 'language' option that the
+// previous shape of this type left out entirely.
 export interface FrontendLocaleData {
   language: string;
-  number_format: 'comma_decimal' | 'decimal_comma' | 'space_comma' | 'system';
-  time_format: '12' | '24' | 'system' | 'am_pm';
+  number_format: 'language' | 'system' | 'comma_decimal' | 'decimal_comma' | 'quote_decimal' | 'space_comma' | 'none';
+  time_format: 'language' | 'system' | '12' | '24';
   // You can expand this with more properties if needed
 }
 
@@ -73,7 +76,11 @@ export type StationConfig = string | { device: string; logo?: string; name?: str
 export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   title?: string;
   stations: StationConfig[];
-  show_address?: boolean; // for backwards compatibility
+  /**
+   * @deprecated Superseded by show_street / show_postcode / show_city. Still honoured: `false`
+   * hides the whole address, and the card warns once when the key is present.
+   */
+  show_address?: boolean;
   show_street?: boolean;
   show_postcode?: boolean;
   show_city?: boolean;
@@ -90,4 +97,6 @@ export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   font_scale?: number;
   price_bg_color?: string;
   price_font_color?: string;
+  show_24_7_badge?: boolean;
+  show_opening_status?: boolean;
 }

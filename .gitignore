@@ -18,3 +18,10 @@ lerna-debug.log*
 .DS_Store
 
 *.bak
+
+# Playwright
+test-results/
+playwright-report/
+
+# Local machine compose override (corporate CA, local paths)
+docker-compose.override.yml

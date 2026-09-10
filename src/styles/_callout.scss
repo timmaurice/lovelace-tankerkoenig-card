@@ -1,0 +1,79 @@
+// Deliberately in the flow rather than floating over the list: as an absolutely positioned
+// tooltip it covered the next station row, hiding that station's name and address until it
+// was dismissed - worst on a phone, where the rows are closest together. In the flow it
+// grows its own row instead, and the list below stays readable.
+//
+// It is a wrapped line of the station row, so it spans the whole card. As a child of the info
+// column it only ever got the card's width minus the logo, the gaps and the price column,
+// which on a phone wrapped a multi-rule hours string several times over for no reason.
+.opening-hours-callout {
+  // The badge the callout belongs to starts where the info column does: past the logo and the
+  // row gap. The arrow follows it rather than sitting at the callout's own left edge.
+  --callout-arrow-left: calc(var(--station-logo-size, 40px) + var(--station-gap, 12px) + 12px);
+
+  align-items: flex-start;
+  animation: calloutFadeIn 0.15s ease-in-out;
+  background-color: var(
+    --tooltip-background-color,
+    var(--secondary-background-color, var(--card-background-color, #202020))
+  );
+  border: 1px solid var(--tooltip-border-color, var(--divider-color));
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  color: var(--tooltip-text-color, var(--primary-text-color, #ffffff));
+  display: flex;
+  // A full-width line of the wrapped station row: the basis claims the whole line, and
+  // max-width keeps a wide hours table inside the card.
+  flex: 0 0 100%;
+  flex-direction: column;
+  font-size: 0.82em;
+  gap: 6px;
+  margin-top: 8px;
+  max-width: 100%;
+  padding: 10px 14px;
+  position: relative;
+
+  .opening-hours-line {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .opening-hours-days {
+    color: var(--tooltip-text-color, var(--secondary-text-color));
+    font-weight: 500;
+    opacity: 0.8;
+  }
+
+  .opening-hours-time {
+    color: var(--tooltip-text-color, var(--primary-text-color));
+    font-family: var(--paper-font-code_-_font-family, monospace);
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  &::before {
+    border-color: transparent transparent var(--tooltip-border-color, var(--divider-color)) transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: var(--callout-arrow-left);
+    position: absolute;
+    top: -6px;
+  }
+
+  &::after {
+    border-color: transparent transparent
+      var(--tooltip-background-color, var(--secondary-background-color, var(--card-background-color, #202020)))
+      transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: var(--callout-arrow-left);
+    position: absolute;
+    top: -5px;
+  }
+}

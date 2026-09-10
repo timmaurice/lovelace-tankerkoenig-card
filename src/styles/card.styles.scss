@@ -1,3 +1,7 @@
+@use 'badges';
+@use 'callout';
+@use 'prices';
+
 :host ::slotted(.card-content),
 .card-content {
   container-name: tankerkoenig-card;
@@ -12,14 +16,47 @@
   color: var(--error-color);
 }
 
+.price-warning {
+  font-size: 0.8em;
+  max-width: 12em;
+  text-align: right;
+}
+
 .station {
+  // Named so the callout, which is a wrapped line of this row, can work out where the badge
+  // it belongs to starts and put its arrow there.
+  --station-logo-size: 40px;
+  --station-gap: 12px;
+
   align-items: center;
+  border-radius: 8px;
   display: flex;
-  gap: 12px;
+  // The opening-hours callout is a line of its own below the row. Wrapping is what gives it
+  // the card's full width, and it is also why opening it no longer re-centres the logo and
+  // the price column: align-items applies per flex line, so the first line keeps its height
+  // and its contents stay put.
+  flex-wrap: wrap;
+  gap: var(--station-gap);
+  margin: -6px -8px;
+  padding: 6px 8px;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+
+  &:hover {
+    background-color: var(--hover-color, rgba(255, 255, 255, 0.03));
+  }
 
   &.closed {
     filter: grayscale(1);
-    opacity: 0.5;
+
+    .logo-container,
+    .station-name,
+    .badge,
+    .address,
+    .last-updated,
+    .prices {
+      opacity: 0.5;
+    }
   }
 }
 
@@ -28,19 +65,79 @@
   line-height: 0;
 
   .logo {
-    height: 40px;
+    border-radius: 4px;
+    height: var(--station-logo-size, 40px);
     object-fit: contain;
-    width: 40px;
+    width: var(--station-logo-size, 40px);
   }
 }
 
 .info {
   flex-grow: 1;
   min-width: 0;
+  position: relative;
 }
 
 .row-1 {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  position: relative;
+}
+
+.station-name-wrapper {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
+}
+
+.row-2 {
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.row-3 {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+  position: relative;
+}
+
+.badge-container {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 6px;
+  position: relative;
+}
+
+.address {
+  color: var(--secondary-text-color);
+  display: block;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.last-updated {
+  color: var(--secondary-text-color);
+  font-size: 0.8em;
+  opacity: 0.65;
+}
+
+.badge-container + .last-updated::before {
+  content: '•';
+  margin-right: 8px;
+  opacity: 0.5;
+}
+
+@container tankerkoenig-card (max-width: 400px) {
+  .badge-container + .last-updated::before {
+    display: none;
+  }
 }
 
 .station-name {
@@ -52,7 +149,8 @@
   white-space: nowrap;
   width: 100%;
 
-  &:hover {
+  // Only names the card measured as overflowing get the marquee; see _markOverflowingNames.
+  &.can-marquee:hover {
     animation: marquee 5s linear infinite;
     overflow: visible;
     width: fit-content;
@@ -80,81 +178,36 @@
   }
 }
 
-.prices {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  justify-content: flex-end;
-  text-align: center;
-  white-space: nowrap;
+@keyframes calloutFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.price-container {
-  background-color: var(--divider-color);
-  border-radius: 4px;
-  color: var(--primary-text-color);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  padding: 4px 8px;
-}
-
-.price {
-  font-family:
-    'Digital-7', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New',
-    monospace;
-  line-height: 1;
-  text-shadow: none;
-}
-
-.fuel-header {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-}
-
-.price sup {
-  font-size: 0.6em;
-}
-
-.currency {
-  font-size: 0.7em;
-  font-weight: normal;
-  margin-left: 2px;
-  opacity: 0.7;
-}
-
-.price-change-indicator {
-  font-size: 1em;
-  margin: 0 4px;
-  vertical-align: middle;
-}
-
-.price-change-indicator.price-up::after {
-  color: var(--error-color);
-  content: '▲';
-}
-
-.price-change-indicator.price-down::after {
-  color: var(--success-color);
-  content: '▼';
-}
-
-@container tankerkoenig-card (max-width: 400px) {
-  .prices {
-    flex-direction: column;
+// Everything that moves on its own is off for readers who ask their system for less motion.
+@media (prefers-reduced-motion: reduce) {
+  .station-name.can-marquee:hover {
+    animation: none;
   }
 
+  .opening-hours-callout {
+    animation: none;
+  }
+
+  .station,
+  .badge,
   .price-container {
-    flex-direction: row;
-    justify-content: flex-end;
+    transition: none;
   }
 
-  .prices.prices-side-by-side {
-    flex-direction: row;
-  }
-
-  .prices.prices-side-by-side .price-container {
-    flex-direction: column;
+  .badge:active,
+  .price-container:hover,
+  .price-container:active {
+    transform: none;
   }
 }

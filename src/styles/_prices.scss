@@ -1,0 +1,126 @@
+.prices {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  gap: 8px;
+  justify-content: flex-end;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.price-container {
+  background-color: var(--local-price-bg-color);
+  border-radius: 6px;
+  color: var(--local-price-font-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &.diesel {
+    width: 4.4em;
+  }
+
+  &.e10,
+  &.e5 {
+    width: 3.6em;
+  }
+
+  &:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-color, var(--primary-color, #03a9f4));
+    outline-offset: 2px;
+  }
+}
+
+.price {
+  font-family:
+    'Digital-7', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New',
+    monospace;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.fuel-header {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.price sup {
+  font-size: 0.6em;
+}
+
+.currency {
+  font-size: 0.7em;
+  font-weight: normal;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+.price-change-indicator {
+  font-size: 1em;
+  margin: 0 4px;
+  vertical-align: middle;
+}
+
+.price-change-indicator.price-up::after {
+  color: var(--error-color);
+  content: '▲';
+}
+
+.price-change-indicator.price-down::after {
+  color: var(--success-color);
+  content: '▼';
+}
+
+@container tankerkoenig-card (max-width: 400px) {
+  .prices {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .price-container {
+    flex-direction: row;
+    justify-content: flex-end;
+    width: auto;
+
+    &.diesel,
+    &.e10,
+    &.e5 {
+      width: auto;
+    }
+  }
+
+  .prices.prices-side-by-side {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .prices.prices-side-by-side .price-container {
+    display: flex;
+    flex-direction: column;
+
+    &.diesel {
+      width: 4.4em;
+    }
+
+    &.e10,
+    &.e5 {
+      width: 3.6em;
+    }
+  }
+}

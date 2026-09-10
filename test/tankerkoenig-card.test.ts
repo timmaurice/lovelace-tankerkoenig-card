@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
-import type { TankerkoenigCard } from '../src/tankerkoenig-card';
-import { HomeAssistant, TankerkoenigCardConfig } from '../src/types';
+import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
+import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
 // Mock console.info
 vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -128,6 +128,10 @@ describe('TankerkoenigCard', () => {
 
     element = document.createElement('tankerkoenig-card') as TankerkoenigCard;
     document.body.appendChild(element);
+    utils.resetFailedLogoUrls();
+    // The deprecation is announced once per page load, and a test suite is one page. Without
+    // this, a test asserting the warning only passes while it is the first to use the key.
+    utils.resetShowAddressWarning();
   });
 
   afterEach(() => {
@@ -144,6 +148,134 @@ describe('TankerkoenigCard', () => {
       expect(() => element.setConfig({ type: 'custom:tankerkoenig-card', stations: [] })).toThrow(
         'You need to define at least one station entity',
       );
+    });
+
+    it('should still honour the superseded show_address key', async () => {
+      // The key was declared "for backwards compatibility" and then read by nothing, so
+      // `show_address: false` printed the address anyway.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({ show_address: false }, station);
+
+      expect(element.shadowRoot?.querySelector('.address')).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('show_address'));
+      warn.mockRestore();
+    });
+
+    it('should let an explicit address part win over the legacy key', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({ show_address: false, show_city: true }, station);
+
+      expect(element.shadowRoot?.querySelector('.address')?.textContent?.trim()).toBe('Musterstadt');
+      warn.mockRestore();
+    });
+
+    it('should announce the deprecation once per page, not once per card', async () => {
+      // The latch lives in module state, so it outlives the card that tripped it. This test
+      // sits after the other show_address tests on purpose: it is the arrangement in which a
+      // suite that never resets the latch sees no warning at all.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+
+      await setupCard({ show_address: false }, station);
+      element.setConfig({ ...config, show_address: false });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+  });
+
+  describe('Card picker and layout', () => {
+    it('should not throw when Home Assistant asks before hass exists', () => {
+      expect(() => TankerkoenigCardClass.getStubConfig()).not.toThrow();
+      expect(TankerkoenigCardClass.getStubConfig().stations).toEqual([]);
+    });
+
+    it('should only return keys that differ from the defaults', () => {
+      // show_street, show_postcode and show_city are all on by default, so writing them into
+      // every new card added three lines of YAML that say nothing.
+      const stub = TankerkoenigCardClass.getStubConfig();
+      expect(Object.keys(stub).sort()).toEqual(['stations', 'title']);
+    });
+
+    it('should pick the first tankerkoenig station it can find', () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      hass.entities = Object.fromEntries(
+        Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform: 'tankerkoenig' }]),
+      );
+
+      expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([station.device_id]);
+    });
+
+    it('should ignore entities of another integration', () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      hass.entities = Object.fromEntries(
+        Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform: 'demo' }]),
+      );
+
+      expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
+    });
+
+    it('should report a card size that follows the station count', async () => {
+      // A constant 3 made a one-station card tower over its content and clipped a long one
+      // in a masonry column.
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.60' });
+
+      await setupCard({}, station1);
+      expect(element.getCardSize()).toBe(2);
+
+      await setupCard({}, station1, station2, station3);
+      expect(element.getCardSize()).toBe(4);
+      expect(element.getCardSize()).toBe(element.getGridOptions().rows);
+    });
+
+    it('should size itself by station count on a sections dashboard', async () => {
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      await setupCard({}, station1, station2);
+
+      expect(element.getGridOptions()).toEqual({ rows: 3, columns: 12, min_rows: 2, min_columns: 6 });
+    });
+
+    it('should count the rows it renders, not the stations it was given', async () => {
+      // show_only_cheapest renders one row out of three, so counting stations.length put the
+      // card back to towering over its content - the symptom the row count was meant to cure.
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.60' });
+
+      await setupCard(
+        { sort_by: 'e10', show_only_cheapest: true, show_only_cheapest_count: 1 },
+        station1,
+        station2,
+        station3,
+      );
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      expect(element.getCardSize()).toBe(2);
+      expect(element.getGridOptions().rows).toBe(2);
+    });
+
+    it('should not count a station that hide_unavailable_stations drops', async () => {
+      const open = createMockStation('open', 'Open', 'Brand1', { e10: '1.80' });
+      const closed = createMockStation('closed', 'Closed', 'Brand2', { e10: '1.70' }, 'off');
+
+      await setupCard({ hide_unavailable_stations: true }, open, closed);
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      expect(element.getCardSize()).toBe(2);
+      expect(element.getGridOptions().rows).toBe(2);
+    });
+
+    it('should fall back to the configured count before Home Assistant hands it a hass', () => {
+      // The sizing hooks can be asked before the card has any state to filter with.
+      element.setConfig({ ...config, stations: ['device-1', 'device-2', 'device-3'] });
+
+      expect(element.getCardSize()).toBe(4);
+      expect(element.getGridOptions().rows).toBe(4);
     });
   });
 
@@ -235,8 +367,8 @@ describe('TankerkoenigCard', () => {
       const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
       expect(priceContainer).not.toBeNull();
 
-      expect(priceContainer?.style.backgroundColor).toBe('rgb(255, 0, 0)');
-      expect(priceContainer?.style.color).toBe('rgb(0, 0, 255)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-bg-color')).toBe('rgb(255, 0, 0)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-font-color')).toBe('rgb(0, 0, 255)');
     });
 
     it('should apply custom RGBA colors for price background', async () => {
@@ -246,8 +378,7 @@ describe('TankerkoenigCard', () => {
       const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
       expect(priceContainer).not.toBeNull();
 
-      // JSDOM converts rgba to rgb if alpha is 1, but should preserve it if it's not
-      expect(priceContainer?.style.backgroundColor).toBe('rgba(255, 0, 0, 0.5)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-bg-color')).toBe('rgba(255, 0, 0, 0.5)');
     });
   });
 
@@ -383,6 +514,156 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Price formatting', () => {
+    it('should not throw and should still render a price state without a decimal point', async () => {
+      // The card used to split the state on '.' and index the second half unconditionally,
+      // so an integer state took the whole render down with a TypeError.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '2' });
+      await setupCard({}, station);
+
+      const priceEl = element.shadowRoot?.querySelector('.price');
+      expect(priceEl).not.toBeNull();
+      expect(priceEl?.textContent).toContain('2.00');
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+    });
+
+    it('should render the price with the decimal separator the locale asks for', async () => {
+      hass.language = 'de';
+      hass.locale = { language: 'de', number_format: 'decimal_comma', time_format: '24' };
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const priceEl = element.shadowRoot?.querySelector('.price');
+      expect(priceEl?.textContent).toContain('1,89');
+      expect(priceEl?.querySelector('sup')?.textContent).toBe('9');
+    });
+  });
+
+  describe('Unresolvable entities', () => {
+    it('should report an unknown status instead of claiming the station is closed', async () => {
+      // No status entity at all: the card was told nothing, and used to render a greyed-out
+      // "Closed" badge - a statement it had no basis for.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      delete station.states['binary_sensor.aral_status'];
+      delete station.entities['binary_sensor.aral_status'];
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.textContent).toBe('Status unknown');
+      expect(badge?.classList.contains('badge-closed')).toBe(false);
+
+      const stationEl = element.shadowRoot?.querySelector('.station');
+      expect(stationEl?.classList.contains('closed')).toBe(false);
+      expect(stationEl?.classList.contains('unknown')).toBe(true);
+    });
+
+    it('should report an unknown status when the status entity is unavailable', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].state = 'unavailable';
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Status unknown');
+      expect(element.shadowRoot?.querySelector('.station')?.classList.contains('closed')).toBe(false);
+    });
+
+    it('should keep a station of unknown status when unavailable stations are hidden', async () => {
+      // Hiding it would drop a configured station on the strength of a guess.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].state = 'unavailable';
+      await setupCard({ hide_unavailable_stations: true }, station);
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+    });
+
+    it('should not print the word undefined when a station reports no postcode', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      delete station.states['sensor.aral_e5'].attributes.postcode;
+      await setupCard({}, station);
+
+      const addressEl = element.shadowRoot?.querySelector('.address');
+      expect(addressEl?.textContent).not.toContain('undefined');
+      expect(addressEl?.textContent).toBe('Musterstraße 1, Musterstadt');
+    });
+
+    it('should warn instead of rendering a placeholder for a price entity that is gone', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.799' });
+      await setupCard({ fuel_types: ['e5', 'e10'] }, station);
+
+      // The entity disappears after the cache was built, e.g. the integration was reloaded.
+      const states = { ...hass.states };
+      delete states['sensor.aral_e10'];
+      element.hass = { ...hass, states };
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.price-warning');
+      expect(warning?.textContent?.trim()).toBe('Entity not found: sensor.aral_e10');
+    });
+
+    it('should still sort when a station lost the entity it is sorted by', async () => {
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      await setupCard({ sort_by: 'e10' }, station1, station2);
+
+      const states = { ...hass.states };
+      delete states['sensor.station2_e10'];
+      element.hass = { ...hass, states };
+      await element.updateComplete;
+
+      // Reading the state directly threw a TypeError here and took the card down.
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(2);
+    });
+  });
+
+  describe('Entities appearing and price history', () => {
+    it('should pick up an entity that only gets a state after the first render', async () => {
+      // The registry lists the sensor from the start, but it has no state yet - an
+      // integration still starting up. The cache skipped it and nothing ever looked again,
+      // so the price stayed missing until the page was reloaded.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', diesel: '1.699' });
+      const lateState = station.states['sensor.aral_diesel'];
+      delete station.states['sensor.aral_diesel'];
+      await setupCard({ fuel_types: ['e5', 'diesel'] }, station);
+
+      expect(element.shadowRoot?.querySelectorAll('.price-container').length).toBe(1);
+
+      element.hass = { ...hass, states: { ...hass.states, 'sensor.aral_diesel': lateState } };
+      await element.updateComplete;
+
+      const containers = element.shadowRoot?.querySelectorAll('.price-container');
+      expect(containers?.length).toBe(2);
+      expect(element.shadowRoot?.querySelector('.price-container.diesel')).not.toBeNull();
+    });
+
+    it('should derive a price direction from the observed change without asking for history', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
+      (hass.callWS as Mock).mockResolvedValue({});
+      await setupCard({ show_price_changes: true }, station);
+      (hass.callWS as Mock).mockClear();
+
+      const raised = { ...hass.states['sensor.aral_e5'], state: '1.829' };
+      element.hass = { ...hass, states: { ...hass.states, 'sensor.aral_e5': raised } };
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.price-change-indicator')?.classList.contains('price-up')).toBe(true);
+      // The card already held both states; refetching 24 hours of history for all entities
+      // on every observed change was pure waste.
+      expect(hass.callWS as Mock).not.toHaveBeenCalled();
+    });
+
+    it('should survive a history call that rejects', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      (hass.callWS as Mock).mockRejectedValue(new Error('recorder is not set up'));
+
+      await setupCard({ show_price_changes: true }, station);
+      await expect(element['_fetchPriceChanges']()).resolves.toBeUndefined();
+
+      expect(warn).toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      warn.mockRestore();
+    });
+  });
+
   describe('Interactions', () => {
     it('should fire hass-more-info event on click', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
@@ -392,6 +673,73 @@ describe('TankerkoenigCard', () => {
       priceEl?.click();
 
       expect(fireEventSpy).toHaveBeenCalledWith(element, 'hass-more-info', { entityId: 'sensor.aral_diesel' });
+    });
+  });
+
+  describe('Accessibility and motion', () => {
+    it('should name the station group without making it a tab stop', async () => {
+      // Enter does nothing on the row itself, so a tab stop per station was twenty dead
+      // stops on a twenty-station card. The accessible name stays.
+      const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const stationEl = element.shadowRoot?.querySelector('.station');
+      expect(stationEl?.hasAttribute('tabindex')).toBe(false);
+      expect(stationEl?.getAttribute('role')).toBe('group');
+      expect(stationEl?.getAttribute('aria-label')).toBe('ARAL Tankstelle');
+    });
+
+    it('should not make the card itself a tab stop', async () => {
+      // ha-card has no behaviour of its own; a focus stop that does nothing is noise for
+      // anyone moving through the dashboard by keyboard.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('ha-card')?.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it('should only expose the badge as a button when it opens the opening hours', async () => {
+      const plain = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, plain);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.hasAttribute('role')).toBe(false);
+      expect(badge?.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it('should report the callout state on the badge button', async () => {
+      const station = createMockStation('shell', 'Shell', 'Shell', { e5: '1.899' });
+      station.states['binary_sensor.shell_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.getAttribute('role')).toBe('button');
+      expect(badge?.getAttribute('aria-expanded')).toBe('false');
+
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.badge')?.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should only mark a station name for the marquee when it overflows', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      // jsdom reports zero for both, so the widths are stubbed the way a browser reports
+      // them: the marquee must stay off a name that fits.
+      const name = element.shadowRoot?.querySelector<HTMLElement>('.station-name') as HTMLElement;
+      const stub = (scrollWidth: number, clientWidth: number) => {
+        Object.defineProperty(name, 'scrollWidth', { value: scrollWidth, configurable: true });
+        Object.defineProperty(name, 'clientWidth', { value: clientWidth, configurable: true });
+      };
+
+      stub(100, 200);
+      element['_markOverflowingNames']();
+      expect(name.classList.contains('can-marquee')).toBe(false);
+
+      stub(400, 200);
+      element['_markOverflowingNames']();
+      expect(name.classList.contains('can-marquee')).toBe(true);
     });
   });
 
@@ -412,10 +760,450 @@ describe('TankerkoenigCard', () => {
       const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
       expect(logo?.src).toBe(customLogoUrl);
     });
+
+    it('should fall back to the inline placeholder when the logo fails to load', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo') as HTMLImageElement;
+      logo.dispatchEvent(new Event('error'));
+
+      // A remote fallback would fail as well on an unreachable host and loop forever.
+      expect(logo.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(logo.getAttribute('src')?.startsWith('data:image/svg+xml,')).toBe(true);
+    });
+
+    it('should keep the placeholder when a later render writes the logo again', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      const brokenLogo = 'https://example.com/broken.png';
+      const otherLogo = 'https://example.com/other.png';
+      await setupCard({ stations: [{ device: station.device_id, logo: brokenLogo }] }, station);
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo') as HTMLImageElement;
+      logo.dispatchEvent(new Event('error'));
+      expect(logo.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+
+      // The station list is unkeyed, so Lit reuses this <img> across renders: it commits
+      // another station's URL into the same slot and later the broken one again. Neither
+      // write may resurrect the broken URL over the placeholder.
+      element.setConfig({
+        type: 'custom:tankerkoenig-card',
+        stations: [{ device: station.device_id, logo: otherLogo }],
+      });
+      await element.updateComplete;
+      element.setConfig({
+        type: 'custom:tankerkoenig-card',
+        stations: [{ device: station.device_id, logo: brokenLogo }],
+      });
+      await element.updateComplete;
+
+      const logoAfterRerender = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
+      expect(logoAfterRerender?.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+  });
+
+  describe('Opening Times and Badges Options', () => {
+    it('should render 24/7 badge when twenty_four_seven is true on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.twenty_four_seven = true;
+      await setupCard({ show_24_7_badge: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-247');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('24/7');
+    });
+
+    it('should render closing status badge when opening hours are configured on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = '06:00-22:00';
+
+      const fakeNow = new Date();
+      fakeNow.setHours(21);
+      fakeNow.setMinutes(30);
+      vi.useFakeTimers();
+      vi.setSystemTime(fakeNow);
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-closing-soon');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('Closes soon');
+
+      vi.useRealTimers();
+    });
+
+    it('should fall back to a plain open badge when no closing time is known', async () => {
+      // 'Mo-Fr' hours with a station reported open on a Sunday: the parser finds no range
+      // covering now, so there is no time to put in "Closes at {time}" - and the badge used
+      // to be rendered with an empty slot where the time belongs.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-07T12:00:00')); // a Sunday
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.textContent).toBe('Open');
+      expect(badge?.textContent).not.toContain('Closes at');
+
+      vi.useRealTimers();
+    });
+
+    it('should render the closing time on a 12-hour clock when the profile asks for one', async () => {
+      hass.locale = { language: 'en', number_format: 'comma_decimal', time_format: '12' };
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = '06:00-22:00';
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-03T12:00:00'));
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-open');
+      expect(badge?.textContent).toBe('Closes at 10:00 PM');
+
+      vi.useRealTimers();
+    });
+
+    it('should render opening times tooltip when badge is clicked and opening_hours is configured on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      const callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
+      expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
+    });
+
+    it('should render 24/7 badge when whole_day attribute is true on status entity', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.whole_day = true;
+      await setupCard({ show_24_7_badge: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-247');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('24/7');
+    });
+
+    it('should render opening times from opening_times array attribute on status entity when clicked', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_times = [
+        { start: '08:30:00', end: '19:00:00', text: 'Mo-Fr' },
+        { start: '08:30:00', end: '18:00:00', text: 'Samstag' },
+      ];
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      const callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      const lines = callout?.querySelectorAll('.opening-hours-line');
+      expect(lines?.length).toBe(2);
+      expect(lines?.[0].querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
+      expect(lines?.[0].querySelector('.opening-hours-time')?.textContent).toBe('08:30-19:00');
+      expect(lines?.[1].querySelector('.opening-hours-days')?.textContent).toBe('Saturday');
+      expect(lines?.[1].querySelector('.opening-hours-time')?.textContent).toBe('08:30-18:00');
+    });
+
+    it('should toggle opening times callout when status badge is clicked', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states[`binary_sensor.aral_status`].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      // Verify callout is hidden initially
+      let callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).toBeNull();
+
+      // Find and click the status badge
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge).not.toBeNull();
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      // Verify callout is now visible
+      callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).not.toBeNull();
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
+      expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
+
+      // Click the badge again
+      badge?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      // Verify callout is hidden again
+      callout = element.shadowRoot?.querySelector('.opening-hours-callout');
+      expect(callout).toBeNull();
+    });
+
+    it('should not come back with an open callout after the card is moved', async () => {
+      // Edit mode moves a card in the DOM. The document listener that closes the callout does
+      // not survive that, so an open callout came back with nothing left to dismiss it.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      await setupCard({}, station);
+
+      const open = async () => {
+        element.shadowRoot
+          ?.querySelector('.badge')
+          ?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+        await element.updateComplete;
+      };
+      await open();
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).not.toBeNull();
+
+      // The move itself: out of the document and straight back in.
+      const parent = element.parentElement as HTMLElement;
+      parent.removeChild(element);
+      parent.appendChild(element);
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).toBeNull();
+
+      // And clicking outside still closes a callout opened after the move.
+      await open();
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).not.toBeNull();
+      document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')).toBeNull();
+    });
   });
 });
 
 describe('utils', () => {
+  beforeEach(() => {
+    utils.resetFailedLogoUrls();
+  });
+
+  describe('locale formatting', () => {
+    const withLocale = (
+      language: string,
+      number_format: HomeAssistant['locale']['number_format'],
+      time_format: HomeAssistant['locale']['time_format'],
+    ): HomeAssistant => ({ language, locale: { language, number_format, time_format } }) as HomeAssistant;
+
+    describe('formatPrice', () => {
+      it('should split a three-decimal price into the main part and the superscript', () => {
+        const price = utils.formatPrice('1.899', withLocale('en', 'comma_decimal', '24'));
+        expect(price).toEqual({ main: '1.89', superscript: '9' });
+      });
+
+      it('should pad a state that carries no decimal point instead of throwing', () => {
+        expect(utils.formatPrice('2', withLocale('en', 'comma_decimal', '24'))).toEqual({
+          main: '2.00',
+          superscript: '0',
+        });
+      });
+
+      it('should use the German decimal comma', () => {
+        expect(utils.formatPrice('1.899', withLocale('de', 'decimal_comma', '24'))).toEqual({
+          main: '1,89',
+          superscript: '9',
+        });
+      });
+
+      it('should return null for a state that is not a number', () => {
+        expect(utils.formatPrice('unavailable', withLocale('en', 'comma_decimal', '24'))).toBeNull();
+      });
+    });
+
+    describe('formatTimeOfDay', () => {
+      it('should render a 24-hour clock with a padded hour when the profile says 24', () => {
+        // '24' is how Home Assistant serialises TimeFormat.twenty_four. It used to be
+        // ignored entirely, so an en-US user asking for 24 hours still read AM/PM.
+        expect(utils.formatTimeOfDay(6 * 60, withLocale('en', 'comma_decimal', '24'))).toBe('06:00');
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('en', 'comma_decimal', '24'))).toBe('22:00');
+      });
+
+      it('should render a 12-hour clock when the profile says 12', () => {
+        // '12' is TimeFormat.am_pm, even for a German user who picked it deliberately.
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('de', 'decimal_comma', '12'))).toBe('10:00 PM');
+      });
+
+      it('should leave the choice to the locale for language and system', () => {
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('de', 'decimal_comma', 'language'))).toBe('22:00');
+        expect(utils.usesTwelveHourClock(withLocale('de', 'decimal_comma', 'system'))).toBeUndefined();
+      });
+    });
+
+    describe('formatNumber', () => {
+      it('should honour the number format of the profile', () => {
+        expect(utils.formatNumber(1234.5, withLocale('de', 'decimal_comma', '24'))).toBe('1.234,5');
+        expect(utils.formatNumber(1234.5, withLocale('en', 'comma_decimal', '24'))).toBe('1,234.5');
+      });
+
+      it('should not format at all when the profile opts out', () => {
+        expect(utils.formatNumber(1234.5, withLocale('de', 'none', '24'))).toBe('1234.5');
+      });
+    });
+  });
+
+  describe('resolveEntity', () => {
+    const hassWith = (states: Record<string, unknown>): HomeAssistant => ({ states }) as HomeAssistant;
+    const stateOf = (entity_id: string, state: string) =>
+      ({ entity_id, state, attributes: {}, last_changed: '', last_updated: '' }) as HassEntity;
+
+    it('should report not_found for an entity that is not in hass', () => {
+      const resolved = utils.resolveEntity(hassWith({}), 'sensor.gone');
+      expect(resolved.problem).toBe('not_found');
+      expect(resolved.stateObj).toBeUndefined();
+    });
+
+    it('should report not_found for a missing entity id', () => {
+      expect(utils.resolveEntity(hassWith({}), undefined).problem).toBe('not_found');
+    });
+
+    it('should report unavailable for both unavailable and unknown states', () => {
+      const hass = hassWith({
+        'sensor.a': stateOf('sensor.a', 'unavailable'),
+        'sensor.b': stateOf('sensor.b', 'unknown'),
+      });
+      expect(utils.resolveEntity(hass, 'sensor.a').problem).toBe('unavailable');
+      expect(utils.resolveEntity(hass, 'sensor.b').problem).toBe('unavailable');
+    });
+
+    it('should report wrong_domain when the caller asked for another domain', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'on') });
+      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['binary_sensor'] }).problem).toBe('wrong_domain');
+      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['sensor'] }).problem).toBeUndefined();
+    });
+
+    it('should report not_numeric only when a number was asked for', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'closed') });
+      expect(utils.resolveEntity(hass, 'sensor.a').problem).toBeUndefined();
+      expect(utils.resolveEntity(hass, 'sensor.a', { numeric: true }).problem).toBe('not_numeric');
+    });
+
+    it('should hand back the parsed value for a numeric entity', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', '1.899') });
+      expect(utils.resolveEntity(hass, 'sensor.a', { numeric: true }).value).toBe(1.899);
+    });
+
+    it('should localise each problem', () => {
+      const hass = { language: 'en', states: {} } as unknown as HomeAssistant;
+      expect(utils.entityProblemMessage(hass, utils.resolveEntity(hass, 'sensor.gone'))).toBe(
+        'Entity not found: sensor.gone',
+      );
+      expect(utils.entityProblemMessage(hass, { entityId: 'sensor.a' })).toBe('');
+    });
+  });
+
+  describe('handleLogoError', () => {
+    it('should swap a broken logo for the inline placeholder', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/logo.png');
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(utils.FALLBACK_LOGO_URL.startsWith('data:image/svg+xml,')).toBe(true);
+    });
+
+    it('should fall back again after the image was recycled for another station', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/first.png');
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+
+      // Lit recycles the <img> positionally when the list is reordered, so the same node
+      // gets a different station's URL. That URL failing must fall back as well.
+      img.setAttribute('src', 'https://example.com/second.png');
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+
+    it('should not swap again when the placeholder itself reports an error', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', utils.FALLBACK_LOGO_URL);
+      let assignments = 0;
+      Object.defineProperty(img, 'src', {
+        configurable: true,
+        get: () => img.getAttribute('src') ?? '',
+        set: () => {
+          assignments += 1;
+        },
+      });
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(assignments).toBe(0);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+  });
+
+  describe('resolveLogoUrl', () => {
+    it('should pass through a URL that has not failed', () => {
+      expect(utils.resolveLogoUrl('https://example.com/fine.png')).toBe('https://example.com/fine.png');
+    });
+
+    it('should resolve a URL that already failed to the placeholder', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/gone.png');
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(utils.resolveLogoUrl('https://example.com/gone.png')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+
+    describe('failure expiry', () => {
+      const url = 'https://example.com/flaky.png';
+
+      const failOnce = (): void => {
+        const img = document.createElement('img');
+        img.setAttribute('src', url);
+        utils.handleLogoError({ target: img } as unknown as Event);
+      };
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('should still resolve to the placeholder shortly after the failure', () => {
+        failOnce();
+
+        vi.advanceTimersByTime(4 * 60 * 1000);
+
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+      });
+
+      it('should resolve to the URL again once the retry window has passed', () => {
+        failOnce();
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+
+        // A dashboard stays open for days; a transient outage must not pin the logo to the
+        // placeholder forever, so the mark is forgotten once the retry window has elapsed.
+        vi.advanceTimersByTime(5 * 60 * 1000);
+
+        expect(utils.resolveLogoUrl(url)).toBe(url);
+      });
+
+      it('should re-arm the placeholder when the retried URL fails again', () => {
+        failOnce();
+        vi.advanceTimersByTime(5 * 60 * 1000);
+        expect(utils.resolveLogoUrl(url)).toBe(url);
+
+        failOnce();
+
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+      });
+    });
+  });
+
   describe('getLogoUrl', () => {
     const LOGO_BASE_URL =
       'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
@@ -452,5 +1240,180 @@ describe('utils', () => {
       expect(utils.getLogoUrl('PIN Service-Station')).toBe(`${LOGO_BASE_URL}pin.png`);
       expect(utils.getLogoUrl('PIN')).toBe(`${LOGO_BASE_URL}pin.png`);
     });
+
+    it('should render a brand logo through the failure guard without looping', () => {
+      // Brand lookup and failure handling share the same `src`: `getLogoUrl` produces the URL
+      // and `resolveLogoUrl` decides what actually reaches the `<img>`. A brand added to the
+      // prefix list must therefore keep both halves working — it resolves to its own logo while
+      // the host is fine, and a failure swaps in the inline placeholder instead of another
+      // remote URL on the same, unreachable host, which is what used to reload forever.
+      const url = utils.getLogoUrl('PIN Service-Station');
+      expect(url).toBe(`${LOGO_BASE_URL}pin.png`);
+      expect(utils.resolveLogoUrl(url)).toBe(url);
+
+      const img = document.createElement('img');
+      img.setAttribute('src', url);
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(utils.FALLBACK_LOGO_URL.startsWith('data:image/svg+xml,')).toBe(true);
+      // A re-render must not write the known-broken URL back over the placeholder.
+      expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+
+      // The placeholder cannot fail, and were it to reach the handler anyway it must not
+      // schedule another load.
+      utils.handleLogoError({ target: img } as unknown as Event);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+  });
+
+  describe('translateDays', () => {
+    const hassWith = (language: string) => ({ language }) as HomeAssistant;
+
+    it('should keep an abbreviated range abbreviated', () => {
+      // 'Mo-Fr' became 'Monday-Friday', several times wider than the source text, and the
+      // callout it lives in is narrow.
+      expect(utils.translateDays('Mo-Fr', hassWith('en'))).toBe('Mon-Fri');
+      expect(utils.translateDays('Mo-Fr', hassWith('de'))).toBe('Mo-Fr');
+    });
+
+    it('should not use the accusative day form in a Ukrainian range', () => {
+      // day_6 is 'суботу' - the form the 'opens on ...' badge needs, which reads wrong on
+      // its own in a range.
+      expect(utils.translateDays('Sa', hassWith('uk'))).toBe('Сб');
+      expect(utils.translateDays('Mo-So', hassWith('uk'))).toBe('Пн-Нд');
+    });
+
+    it('should still write out a day the source writes out', () => {
+      expect(utils.translateDays('Samstag', hassWith('en'))).toBe('Saturday');
+      expect(utils.translateDays('Feiertag', hassWith('en'))).toBe('Holiday');
+    });
+  });
+
+  describe('parseOpeningHours', () => {
+    it('should parse simple daily opening hours correctly', () => {
+      const rules = utils.parseOpeningHours('06:00 - 22:00');
+      expect(rules.length).toBe(1);
+      expect(rules[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(rules[0].ranges).toEqual([{ startMin: 360, endMin: 1320 }]);
+    });
+
+    it('should parse day-specific opening hours correctly', () => {
+      const rules = utils.parseOpeningHours('Mo-Fr: 06:00-22:00, Sa-So 08:00-20:00');
+      expect(rules.length).toBe(2);
+      expect(rules[0].days).toEqual([1, 2, 3, 4, 5]);
+      expect(rules[0].ranges).toEqual([{ startMin: 360, endMin: 1320 }]);
+      expect(rules[1].days).toEqual([6, 0]);
+      expect(rules[1].ranges).toEqual([{ startMin: 480, endMin: 1200 }]);
+    });
+    it('should not let holiday hours dictate Sunday', () => {
+      // 'Feiertag' used to map onto Sunday, so a station closed on Sundays was reported as
+      // opening at 08:00 every Sunday because of its holiday line.
+      const rules = utils.parseOpeningHours('Mo-Sa: 06:00-22:00, Feiertag: 08:00-20:00');
+      expect(rules.length).toBe(2);
+      expect(rules[0].days).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(rules[1].days).toEqual([]);
+    });
+
+    it('should still treat unreadable day names as daily', () => {
+      const rules = utils.parseOpeningHours('Immer: 06:00-22:00');
+      expect(rules[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    });
+
+    it('should parse comma-separated days correctly', () => {
+      const rules = utils.parseOpeningHours('Mo, Di, Mi: 07:00-20:00');
+      expect(rules.length).toBe(1);
+      expect(rules[0].days).toEqual([1, 2, 3]);
+      expect(rules[0].ranges).toEqual([{ startMin: 420, endMin: 1200 }]);
+    });
+  });
+
+  describe('getOpeningStatus', () => {
+    it('should return closes_soon when within 60 minutes of closing', () => {
+      const rules = utils.parseOpeningHours('06:00-22:00');
+      const now = new Date();
+      now.setHours(21);
+      now.setMinutes(30);
+      const res = utils.getOpeningStatus(rules, true, now);
+      expect(res.status).toBe('closing_soon');
+      expect(res.timeMinutes).toBe(22 * 60);
+    });
+
+    it('should return open normally when not close to closing time', () => {
+      const rules = utils.parseOpeningHours('06:00-22:00');
+      const now = new Date();
+      now.setHours(12);
+      now.setMinutes(0);
+      const res = utils.getOpeningStatus(rules, true, now);
+      expect(res.status).toBe('open');
+    });
+
+    it('should return opening_soon with today label if it opens later today', () => {
+      const rules = utils.parseOpeningHours('08:00-22:00');
+      const now = new Date();
+      now.setHours(6);
+      now.setMinutes(0);
+      const res = utils.getOpeningStatus(rules, false, now);
+      expect(res.status).toBe('opening_soon');
+      expect(res.dayLabel).toBe('today');
+      expect(res.timeMinutes).toBe(8 * 60);
+    });
+
+    it('should return opening_soon with tomorrow label if it opens tomorrow', () => {
+      const rules = utils.parseOpeningHours('Mo-Fr 08:00-22:00');
+      // Set to a Tuesday evening (2026-06-02 is Tuesday)
+      const fakeNow = new Date('2026-06-02T23:00:00');
+      const res = utils.getOpeningStatus(rules, false, fakeNow);
+      expect(res.status).toBe('opening_soon');
+      expect(res.dayLabel).toBe('tomorrow');
+      expect(res.timeMinutes).toBe(8 * 60);
+    });
+  });
+});
+
+describe('Duplicate resource registration', () => {
+  it('does not throw when the bundle is evaluated a second time', async () => {
+    // An install that collected a duplicate Lovelace resource loads this bundle
+    // twice. @customElement defines unconditionally, so the second evaluation
+    // threw during module evaluation and the card never registered at all.
+    vi.resetModules();
+    await expect(import('../src/tankerkoenig-card')).resolves.toBeDefined();
+  });
+
+  it('registers the card in customCards only once', async () => {
+    vi.resetModules();
+    await import('../src/tankerkoenig-card');
+
+    const entries = (window.customCards ?? []).filter((card) => card.type === 'tankerkoenig-card');
+    expect(entries).toHaveLength(1);
+  });
+});
+
+describe('Translations', () => {
+  const languages = ['de', 'en', 'uk'] as const;
+
+  const flatten = (value: unknown, prefix = ''): string[] =>
+    typeof value === 'object' && value !== null
+      ? Object.entries(value).flatMap(([key, child]) => flatten(child, prefix ? `${prefix}.${key}` : key))
+      : [prefix];
+
+  it('should carry the same keys in every language', async () => {
+    // German was missing editor.show_address, which English and Ukrainian both had, so a
+    // German user fell through to the English label for it.
+    const files = await Promise.all(languages.map((language) => import(`../src/translation/${language}.json`)));
+    const keys = files.map((file) => flatten(file.default).sort());
+
+    expect(keys[0]).toEqual(keys[1]);
+    expect(keys[1]).toEqual(keys[2]);
+  });
+
+  it('should label hide_unavailable_stations by what the card actually does', async () => {
+    // The key is named for availability but the card hides stations that are closed, which is
+    // what the README documents. The label used to say "Hide Unavailable Stations".
+    const [de, en, uk] = await Promise.all(languages.map((language) => import(`../src/translation/${language}.json`)));
+
+    expect(en.default.editor.hide_unavailable_stations).toMatch(/closed/i);
+    expect(de.default.editor.hide_unavailable_stations).toMatch(/geschlossen/i);
+    expect(uk.default.editor.hide_unavailable_stations).toMatch(/зачинен/i);
   });
 });
