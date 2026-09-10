@@ -9,6 +9,7 @@ import {
   formatDate,
   formatPrice,
   formatTimeOfDay,
+  entityProblemMessage,
   getLogoUrl,
   handleLogoError,
   resolveLogoUrl,
@@ -18,6 +19,7 @@ import {
   parseRawOpeningTimes,
   OpeningRule,
   cleanOpeningHoursDisplay,
+  resolveEntity,
   translateDays,
 } from './utils';
 import styles from './styles/card.styles.scss';
@@ -290,46 +292,40 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     let stationEntries = Object.entries(this._stationCache || {}) as [string, Station][];
 
     if (this._config.hide_unavailable_stations) {
-      stationEntries = stationEntries.filter(
-        ([, station]) => !station.status || this.hass.states[station.status].state === 'on',
-      );
+      // Only a status that actually reads 'off' means closed. A station whose status entity
+      // is gone or unavailable is not known to be closed, so hiding it would drop a station
+      // the user configured on the strength of a guess.
+      stationEntries = stationEntries.filter(([, station]) => {
+        const status = resolveEntity(this.hass, station.status);
+        return !status.stateObj || status.problem !== undefined || status.stateObj.state === 'on';
+      });
     }
+
+    // Reading the state straight out of hass.states threw for an entity that has since
+    // disappeared from the registry but is still in a stale station cache.
+    const sortPrice = (station: Station): number | undefined =>
+      resolveEntity(this.hass, station[sortBy as keyof Station], { numeric: true }).value;
 
     if (sortBy && sortBy !== 'none') {
       stationEntries.sort(([, stationA], [, stationB]) => {
-        const entityA = stationA[sortBy as keyof Station];
-        const entityB = stationB[sortBy as keyof Station];
+        const priceA = sortPrice(stationA);
+        const priceB = sortPrice(stationB);
 
-        if (!entityA) return 1;
-        if (!entityB) return -1;
-
-        const priceA = parseFloat(this.hass.states[entityA as string].state);
-        const priceB = parseFloat(this.hass.states[entityB as string].state);
-
-        if (isNaN(priceA)) return 1;
-        if (isNaN(priceB)) return -1;
+        if (priceA === undefined) return 1;
+        if (priceB === undefined) return -1;
 
         return priceA - priceB;
       });
     }
 
     if (this._config.show_only_cheapest && sortBy && sortBy !== 'none') {
-      const stationsWithPrice = stationEntries.filter(([, station]) => {
-        const entityId = station[sortBy as keyof Station];
-        return entityId && !isNaN(parseFloat(this.hass.states[entityId].state));
-      });
+      const stationsWithPrice = stationEntries.filter(([, station]) => sortPrice(station) !== undefined);
 
       if (stationsWithPrice.length > 0) {
         const count = this._config.show_only_cheapest_count || 1;
         if (count === 1) {
-          const minPrice = Math.min(
-            ...stationsWithPrice.map(([, station]) =>
-              parseFloat(this.hass.states[station[sortBy as keyof Station]!].state),
-            ),
-          );
-          stationEntries = stationsWithPrice.filter(
-            ([, station]) => parseFloat(this.hass.states[station[sortBy as keyof Station]!].state) === minPrice,
-          );
+          const minPrice = Math.min(...stationsWithPrice.map(([, station]) => sortPrice(station) as number));
+          stationEntries = stationsWithPrice.filter(([, station]) => sortPrice(station) === minPrice);
         } else {
           stationEntries = stationsWithPrice.slice(0, count);
         }
@@ -340,8 +336,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       <ha-card .header=${this._config.title} tabindex="0">
         <div class="card-content">
           ${stationEntries.map(([stationId, station]) => {
-            const primaryEntity = station.e5 || station.e10 || station.diesel || station.status;
-            if (!primaryEntity) {
+            // The station's attributes - name, address, brand - are read off whichever of its
+            // entities is still there. Taking the first configured one on faith crashed the
+            // render the moment that entity disappeared while the cache was stale.
+            const primary = [station.e5, station.e10, station.diesel, station.status]
+              .map((entityId) => resolveEntity(this.hass, entityId))
+              .find((resolved) => resolved.stateObj !== undefined);
+
+            if (!primary?.stateObj) {
               return html`
                 <div class="warning">
                   ${localize(this.hass, 'component.tankerkoenig-card.card.station_not_found', {
@@ -351,8 +353,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               `;
             }
 
-            const isOpen = station.status ? this.hass.states[station.status].state === 'on' : false;
-            const stateObj = this.hass.states[primaryEntity];
+            // Tri-state on purpose: undefined means "we do not know", which is not the same
+            // as closed. A missing or unavailable status entity used to render a grey
+            // "Geschlossen" badge, telling the user something the card had never been told.
+            const status = resolveEntity(this.hass, station.status);
+            const isOpen = station.status && !status.problem ? status.stateObj?.state === 'on' : undefined;
+            const stateObj = primary.stateObj;
             const attributes = stateObj.attributes;
             const device = this.hass.devices[stationId];
 
@@ -363,7 +369,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               attributes.station_name ||
               attributes.friendly_name;
 
-            const statusEntity = station.status ? this.hass.states[station.status] : null;
+            const statusEntity = status.stateObj ?? null;
             const twentyFourSevenAttr =
               statusEntity?.attributes?.twenty_four_seven || statusEntity?.attributes?.twenty_four_seven_status;
             const wholeDayAttr = statusEntity?.attributes?.whole_day;
@@ -414,8 +420,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 badgeClass = 'badge-247';
                 badgeText = localize(this.hass, 'component.tankerkoenig-card.card.twenty_four_seven_badge');
               }
+            } else if (isOpen === undefined && showOpeningStatus) {
+              // Nothing told the card whether this station is open. Saying so is the only
+              // honest option; the alternative was a confident "closed".
+              badgeClass = 'badge-unknown';
+              badgeText = localize(this.hass, 'component.tankerkoenig-card.card.status_unknown');
             } else if (openingHours && showOpeningStatus) {
-              const status = getOpeningStatus(rules, isOpen);
+              const status = getOpeningStatus(rules, isOpen === true);
               // A time is only ever rendered when the parser actually found one. Without this
               // guard an open station whose current time falls outside every parsed range was
               // labelled "Schliesst um " with a blank where the time should be.
@@ -487,7 +498,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             }
 
             const cityPart: string[] = [];
-            if (showPostcode) cityPart.push(String(attributes.postcode).padStart(5, '0'));
+            // An unavailable station carries no attributes at all, and String(undefined)
+            // padded to five characters printed the literal word "undefined" as a postcode.
+            const postcode = attributes.postcode;
+            if (showPostcode && postcode !== undefined && postcode !== null && String(postcode) !== '') {
+              cityPart.push(String(postcode).padStart(5, '0'));
+            }
             if (showCity) cityPart.push(capitalize((attributes.city as string) || ''));
             const cityPartStr = cityPart.filter(Boolean).join(' ');
             if (cityPartStr) addressParts.push(cityPartStr);
@@ -526,8 +542,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             return html`
               <div
                 class="station ${classMap({
-                  open: isOpen,
-                  closed: !isOpen,
+                  open: isOpen === true,
+                  // Only a station known to be closed is greyed out. An unknown status is
+                  // rendered at full contrast, because dimming it reads as "closed".
+                  closed: isOpen === false,
+                  unknown: isOpen === undefined,
                   'has-expanded-tooltip': this._expandedStations.has(stationId),
                 })}"
                 tabindex="0"
@@ -585,8 +604,18 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     const entityId = station[fuel as keyof Station];
                     if (!entityId) return '';
 
-                    const stateObj = this.hass.states[entityId];
-                    const isUnavailable = stateObj.state === 'unavailable' || isNaN(parseFloat(stateObj.state));
+                    // A configured price entity that cannot be read is worth saying out loud:
+                    // rendering '-.--' for a sensor that no longer exists looks like a station
+                    // that happens to report no price, and the user never learns why.
+                    const resolved = resolveEntity(this.hass, entityId, { numeric: true });
+                    if (resolved.problem === 'not_found') {
+                      return html`<div class="warning price-warning">
+                        ${entityProblemMessage(this.hass, resolved)}
+                      </div>`;
+                    }
+
+                    const stateObj = resolved.stateObj as NonNullable<typeof resolved.stateObj>;
+                    const isUnavailable = resolved.problem !== undefined;
 
                     const currency = stateObj.attributes.unit_of_measurement || '';
                     // Splitting the raw state on '.' threw whenever the state carried no

@@ -1,4 +1,4 @@
-import { HomeAssistant } from './types';
+import { HassEntity, HomeAssistant } from './types';
 import { localize } from './localize';
 
 /**
@@ -170,6 +170,80 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
   }
 
   return dateObj.toLocaleString(timeLocale(hass), options);
+}
+
+/**
+ * Why an entity could not be used. Callers switch on this instead of on a boolean, so the
+ * card can say what is actually wrong rather than silently rendering a plausible lie - a
+ * missing status entity used to be painted as "closed", and a non-numeric price used to
+ * take the render down with it.
+ */
+export type EntityProblem = 'not_found' | 'unavailable' | 'wrong_domain' | 'not_numeric';
+
+export interface ResolvedEntity {
+  entityId: string;
+  /** Present only when the entity resolved cleanly. */
+  stateObj?: HassEntity;
+  /** The parsed state, present only when `numeric` was asked for and the state parsed. */
+  value?: number;
+  /** Absent exactly when the entity is usable. */
+  problem?: EntityProblem;
+}
+
+export interface ResolveOptions {
+  /** Accepted entity domains, e.g. `['binary_sensor']`. Any domain when omitted. */
+  domains?: string[];
+  /** Require the state to parse as a finite number. */
+  numeric?: boolean;
+}
+
+/**
+ * Looks an entity up and reports, in one typed shape, whether it can be used.
+ * @param hass The Home Assistant object.
+ * @param entityId The entity to resolve.
+ * @param options Domain and numeric requirements.
+ * @returns The resolved entity, carrying a `problem` when it is unusable.
+ */
+export function resolveEntity(
+  hass: HomeAssistant | undefined,
+  entityId: string | undefined,
+  options: ResolveOptions = {},
+): ResolvedEntity {
+  const id = entityId ?? '';
+  const stateObj = id ? hass?.states?.[id] : undefined;
+
+  if (!stateObj) return { entityId: id, problem: 'not_found' };
+
+  if (options.domains && !options.domains.includes(id.split('.')[0])) {
+    return { entityId: id, stateObj, problem: 'wrong_domain' };
+  }
+
+  // 'unknown' counts as unavailable here: both mean the card has no value to show, and
+  // treating either as a normal state is exactly how "unknown" became "closed".
+  if (stateObj.state === 'unavailable' || stateObj.state === 'unknown') {
+    return { entityId: id, stateObj, problem: 'unavailable' };
+  }
+
+  if (options.numeric) {
+    const value = parseFloat(stateObj.state);
+    if (!Number.isFinite(value)) return { entityId: id, stateObj, problem: 'not_numeric' };
+    return { entityId: id, stateObj, value };
+  }
+
+  return { entityId: id, stateObj };
+}
+
+/**
+ * The localised warning a caller renders in place of the entity it could not use.
+ * @param hass The Home Assistant object, used for the language.
+ * @param resolved The result of `resolveEntity`.
+ * @returns The message, or an empty string when there is nothing to warn about.
+ */
+export function entityProblemMessage(hass: HomeAssistant, resolved: ResolvedEntity): string {
+  if (!resolved.problem) return '';
+  return localize(hass, `component.tankerkoenig-card.card.entity_${resolved.problem}`, {
+    entity: resolved.entityId,
+  });
 }
 
 const LOGO_BASE_URL =

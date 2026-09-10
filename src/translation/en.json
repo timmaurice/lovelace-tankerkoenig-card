@@ -76,6 +76,11 @@
     "day_6": "Saturday",
     "holiday": "Holiday",
     "daily": "Daily",
-    "weekdays": "Weekdays"
+    "weekdays": "Weekdays",
+    "entity_not_found": "Entity not found: {entity}",
+    "entity_unavailable": "Entity unavailable: {entity}",
+    "entity_wrong_domain": "Entity is of the wrong type: {entity}",
+    "entity_not_numeric": "Entity does not report a number: {entity}",
+    "status_unknown": "Status unknown"
   }
 }

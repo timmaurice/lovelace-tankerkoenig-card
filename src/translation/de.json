@@ -75,6 +75,11 @@
     "day_6": "Samstag",
     "holiday": "Feiertag",
     "daily": "Täglich",
-    "weekdays": "Werktags"
+    "weekdays": "Werktags",
+    "entity_not_found": "Entität nicht gefunden: {entity}",
+    "entity_unavailable": "Entität nicht verfügbar: {entity}",
+    "entity_wrong_domain": "Entität hat den falschen Typ: {entity}",
+    "entity_not_numeric": "Entität liefert keinen Zahlenwert: {entity}",
+    "status_unknown": "Status unbekannt"
   }
 }

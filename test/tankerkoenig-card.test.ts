@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
 import type { TankerkoenigCard } from '../src/tankerkoenig-card';
-import { HomeAssistant, TankerkoenigCardConfig } from '../src/types';
+import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
 // Mock console.info
 vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -408,6 +408,81 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Unresolvable entities', () => {
+    it('should report an unknown status instead of claiming the station is closed', async () => {
+      // No status entity at all: the card was told nothing, and used to render a greyed-out
+      // "Closed" badge - a statement it had no basis for.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      delete station.states['binary_sensor.aral_status'];
+      delete station.entities['binary_sensor.aral_status'];
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.textContent).toBe('Status unknown');
+      expect(badge?.classList.contains('badge-closed')).toBe(false);
+
+      const stationEl = element.shadowRoot?.querySelector('.station');
+      expect(stationEl?.classList.contains('closed')).toBe(false);
+      expect(stationEl?.classList.contains('unknown')).toBe(true);
+    });
+
+    it('should report an unknown status when the status entity is unavailable', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].state = 'unavailable';
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Status unknown');
+      expect(element.shadowRoot?.querySelector('.station')?.classList.contains('closed')).toBe(false);
+    });
+
+    it('should keep a station of unknown status when unavailable stations are hidden', async () => {
+      // Hiding it would drop a configured station on the strength of a guess.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].state = 'unavailable';
+      await setupCard({ hide_unavailable_stations: true }, station);
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+    });
+
+    it('should not print the word undefined when a station reports no postcode', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      delete station.states['sensor.aral_e5'].attributes.postcode;
+      await setupCard({}, station);
+
+      const addressEl = element.shadowRoot?.querySelector('.address');
+      expect(addressEl?.textContent).not.toContain('undefined');
+      expect(addressEl?.textContent).toBe('Musterstraße 1, Musterstadt');
+    });
+
+    it('should warn instead of rendering a placeholder for a price entity that is gone', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.799' });
+      await setupCard({ fuel_types: ['e5', 'e10'] }, station);
+
+      // The entity disappears after the cache was built, e.g. the integration was reloaded.
+      const states = { ...hass.states };
+      delete states['sensor.aral_e10'];
+      element.hass = { ...hass, states };
+      await element.updateComplete;
+
+      const warning = element.shadowRoot?.querySelector('.price-warning');
+      expect(warning?.textContent?.trim()).toBe('Entity not found: sensor.aral_e10');
+    });
+
+    it('should still sort when a station lost the entity it is sorted by', async () => {
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      await setupCard({ sort_by: 'e10' }, station1, station2);
+
+      const states = { ...hass.states };
+      delete states['sensor.station2_e10'];
+      element.hass = { ...hass, states };
+      await element.updateComplete;
+
+      // Reading the state directly threw a TypeError here and took the card down.
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(2);
+    });
+  });
+
   describe('Interactions', () => {
     it('should fire hass-more-info event on click', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
@@ -694,6 +769,56 @@ describe('utils', () => {
       it('should not format at all when the profile opts out', () => {
         expect(utils.formatNumber(1234.5, withLocale('de', 'none', '24'))).toBe('1234.5');
       });
+    });
+  });
+
+  describe('resolveEntity', () => {
+    const hassWith = (states: Record<string, unknown>): HomeAssistant => ({ states }) as HomeAssistant;
+    const stateOf = (entity_id: string, state: string) =>
+      ({ entity_id, state, attributes: {}, last_changed: '', last_updated: '' }) as HassEntity;
+
+    it('should report not_found for an entity that is not in hass', () => {
+      const resolved = utils.resolveEntity(hassWith({}), 'sensor.gone');
+      expect(resolved.problem).toBe('not_found');
+      expect(resolved.stateObj).toBeUndefined();
+    });
+
+    it('should report not_found for a missing entity id', () => {
+      expect(utils.resolveEntity(hassWith({}), undefined).problem).toBe('not_found');
+    });
+
+    it('should report unavailable for both unavailable and unknown states', () => {
+      const hass = hassWith({
+        'sensor.a': stateOf('sensor.a', 'unavailable'),
+        'sensor.b': stateOf('sensor.b', 'unknown'),
+      });
+      expect(utils.resolveEntity(hass, 'sensor.a').problem).toBe('unavailable');
+      expect(utils.resolveEntity(hass, 'sensor.b').problem).toBe('unavailable');
+    });
+
+    it('should report wrong_domain when the caller asked for another domain', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'on') });
+      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['binary_sensor'] }).problem).toBe('wrong_domain');
+      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['sensor'] }).problem).toBeUndefined();
+    });
+
+    it('should report not_numeric only when a number was asked for', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'closed') });
+      expect(utils.resolveEntity(hass, 'sensor.a').problem).toBeUndefined();
+      expect(utils.resolveEntity(hass, 'sensor.a', { numeric: true }).problem).toBe('not_numeric');
+    });
+
+    it('should hand back the parsed value for a numeric entity', () => {
+      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', '1.899') });
+      expect(utils.resolveEntity(hass, 'sensor.a', { numeric: true }).value).toBe(1.899);
+    });
+
+    it('should localise each problem', () => {
+      const hass = { language: 'en', states: {} } as unknown as HomeAssistant;
+      expect(utils.entityProblemMessage(hass, utils.resolveEntity(hass, 'sensor.gone'))).toBe(
+        'Entity not found: sensor.gone',
+      );
+      expect(utils.entityProblemMessage(hass, { entityId: 'sensor.a' })).toBe('');
     });
   });
 
