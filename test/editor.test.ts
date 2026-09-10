@@ -187,6 +187,84 @@ describe('TankerkoenigCardEditor', () => {
     });
   });
 
+  describe('Effective values in the form', () => {
+    /** The display form is the one that carries the fuel types. */
+    const displayData = (): Record<string, unknown> => {
+      const forms = Array.from(element.shadowRoot?.querySelectorAll('ha-form') ?? []) as (Element & {
+        data?: Record<string, unknown>;
+      })[];
+      const form = forms.find((candidate) => candidate.data && 'fuel_types' in candidate.data);
+      return form?.data as Record<string, unknown>;
+    };
+
+    it('should show what the card actually renders, not blanks', async () => {
+      // A card that never set these showed nothing ticked, an empty dropdown and an empty
+      // count box, while the card was rendering Diesel/E10/E5, no sorting and a count of one.
+      await element.updateComplete;
+
+      const data = displayData();
+      expect(data.fuel_types).toEqual(['diesel', 'e10', 'e5']);
+      expect(data.sort_by).toBe('none');
+      expect(data.show_only_cheapest_count).toBe(1);
+      expect(data.show_24_7_badge).toBe(true);
+      expect(data.show_opening_status).toBe(true);
+    });
+
+    it('should let the saved configuration win over the default', async () => {
+      element.setConfig({ ...config, fuel_types: ['e5'], sort_by: 'diesel', show_only_cheapest_count: 3 });
+      await element.updateComplete;
+
+      const data = displayData();
+      expect(data.fuel_types).toEqual(['e5']);
+      expect(data.sort_by).toBe('diesel');
+      expect(data.show_only_cheapest_count).toBe(3);
+    });
+
+    it('should not write those defaults back into the saved configuration', async () => {
+      const fireEventSpy = vi.spyOn(utils, 'fireEvent');
+      // ha-form emits its whole data object back, defaults and all.
+      element['_valueChanged']({
+        detail: {
+          value: {
+            fuel_types: ['diesel', 'e10', 'e5'],
+            sort_by: 'none',
+            show_only_cheapest_count: 1,
+            show_last_updated: true,
+          },
+        },
+      });
+
+      const saved = (fireEventSpy.mock.calls.at(-1)?.[2] as { config: TankerkoenigCardConfig }).config;
+      expect(saved.show_last_updated).toBe(true);
+      expect('fuel_types' in saved).toBe(false);
+      expect('sort_by' in saved).toBe(false);
+      expect('show_only_cheapest_count' in saved).toBe(false);
+      fireEventSpy.mockRestore();
+    });
+  });
+
+  describe('Station rows', () => {
+    it('should localize the fallback name of a station the registry does not know', async () => {
+      element.setConfig({ ...config, stations: ['device-1', 'device-gone'] });
+      element['_selectedTab'] = 1;
+      await element.updateComplete;
+
+      const names = Array.from(element.shadowRoot?.querySelectorAll('.station-row .station-name') ?? []).map(
+        (name) => name.textContent,
+      );
+      expect(names[1]).toBe('Station 2');
+
+      element.hass = { ...element.hass, language: 'de' };
+      element.requestUpdate();
+      await element.updateComplete;
+
+      const german = Array.from(element.shadowRoot?.querySelectorAll('.station-row .station-name') ?? []).map(
+        (name) => name.textContent,
+      );
+      expect(german[1]).toBe('Tankstelle 2');
+    });
+  });
+
   describe('Customize dialog', () => {
     it('should store a name and a logo on the station it was opened for', async () => {
       const fireEventSpy = vi.spyOn(utils, 'fireEvent');

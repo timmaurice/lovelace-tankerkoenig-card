@@ -43,6 +43,7 @@
     "customize": "Anpassen",
     "remove": "Entfernen",
     "station_name": "Stationsname (Optional)",
+    "station_fallback_name": "Tankstelle {index}",
     "logo_url": "Logo-URL (Optional)",
     "logo_url_placeholder": "Pfad zu einem benutzerdefinierten Logo",
     "save": "Speichern",

@@ -43,6 +43,7 @@
     "customize": "Налаштувати",
     "remove": "Видалити",
     "station_name": "Назва станції (необовʼязково)",
+    "station_fallback_name": "Станція {index}",
     "logo_url": "URL логотипу (необовʼязково)",
     "logo_url_placeholder": "Шлях до власного логотипу",
     "save": "Зберегти",

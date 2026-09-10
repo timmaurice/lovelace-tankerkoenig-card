@@ -14,6 +14,10 @@ if (!window.customElements.get('rgba-string-color-picker')) {
 const GENERAL_SCHEMA = [{ name: 'title', selector: { text: {} } }];
 
 // What the card falls back to when a key is absent, mirrored from the card's own render.
+// This doubles as the data the display form is fed, so every control shows the value that is
+// actually in effect: without it a card that never set fuel_types, sort_by or
+// show_only_cheapest_count showed nothing ticked, an empty dropdown and an empty count box,
+// while the card was quietly rendering Diesel/E10/E5, no sorting and a count of one.
 // The editor's forms have to hand ha-form a fully populated data object or the toggles show
 // the wrong position, and ha-form then emits every one of those keys back - which is how a
 // config that only says `stations:` ended up with a dozen lines restating the defaults.
@@ -31,8 +35,10 @@ const CONFIG_DEFAULTS: Record<string, unknown> = {
   show_24_7_badge: true,
   show_opening_status: true,
   show_only_cheapest: false,
+  show_only_cheapest_count: 1,
   show_prices_side_by_side: false,
   sort_by: 'none',
+  fuel_types: ['diesel', 'e10', 'e5'],
   font_scale: 100,
 };
 interface DialogParams {
@@ -384,11 +390,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <ha-form
               .schema=${schema}
               .hass=${this.hass}
-              .data=${{
-                show_24_7_badge: this._config.show_24_7_badge !== false,
-                show_opening_status: this._config.show_opening_status !== false,
-                ...this._config,
-              }}
+              .data=${{ ...CONFIG_DEFAULTS, ...this._config }}
               .computeLabel=${(s: { name: string }) =>
                 localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
               @value-changed=${this._valueChanged}
@@ -624,7 +626,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     const customLogo = typeof station === 'object' ? station.logo : undefined;
     const customName = typeof station === 'object' ? station.name : undefined;
     const device = this.hass.devices[deviceId];
-    const stationName = customName || device?.name_by_user || device?.name || `Station ${index + 1}`;
+    const stationName =
+      customName ||
+      device?.name_by_user ||
+      device?.name ||
+      localize(this.hass, 'component.tankerkoenig-card.editor.station_fallback_name', { index: index + 1 });
 
     const brand = this._getBrandFromDevice(deviceId);
     const defaultLogo = getLogoUrl(brand);
