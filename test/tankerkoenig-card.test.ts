@@ -780,3 +780,21 @@ describe('utils', () => {
     });
   });
 });
+
+describe('Duplicate resource registration', () => {
+  it('does not throw when the bundle is evaluated a second time', async () => {
+    // An install that collected a duplicate Lovelace resource loads this bundle
+    // twice. @customElement defines unconditionally, so the second evaluation
+    // threw during module evaluation and the card never registered at all.
+    vi.resetModules();
+    await expect(import('../src/tankerkoenig-card')).resolves.toBeDefined();
+  });
+
+  it('registers the card in customCards only once', async () => {
+    vi.resetModules();
+    await import('../src/tankerkoenig-card');
+
+    const entries = (window.customCards ?? []).filter((card) => card.type === 'tankerkoenig-card');
+    expect(entries).toHaveLength(1);
+  });
+});

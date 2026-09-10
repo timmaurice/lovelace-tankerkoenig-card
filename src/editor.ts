@@ -1,5 +1,5 @@
 import { LitElement, html, css, TemplateResult, unsafeCSS } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
@@ -18,7 +18,6 @@ interface DialogParams {
   station: StationConfig;
 }
 
-@customElement('tankerkoenig-card-editor')
 export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config!: TankerkoenigCardConfig;
@@ -727,4 +726,12 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   static styles = css`
     ${unsafeCSS(editorStyles)}
   `;
+}
+
+const EDITOR_ELEMENT_NAME = 'tankerkoenig-card-editor';
+
+// Guarded for the same reason as the card: @customElement defines
+// unconditionally, and a bundle loaded twice would throw on the second pass.
+if (!customElements.get(EDITOR_ELEMENT_NAME)) {
+  customElements.define(EDITOR_ELEMENT_NAME, TankerkoenigCardEditor);
 }

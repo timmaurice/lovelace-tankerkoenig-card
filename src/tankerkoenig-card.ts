@@ -1,5 +1,5 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { property, state, query } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
@@ -51,7 +51,6 @@ declare global {
   }
 }
 
-@customElement(ELEMENT_NAME)
 export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @query('ha-card') private _card!: LovelaceCard;
@@ -598,7 +597,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
                     const containerStyle = {
                       '--local-price-bg-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
-                      '--local-price-font-color': (this._config.price_font_color as string) || 'var(--primary-text-color)',
+                      '--local-price-font-color':
+                        (this._config.price_font_color as string) || 'var(--primary-text-color)',
                     };
 
                     const scale = (this._config.font_scale || 100) / 100;
@@ -661,12 +661,22 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   `;
 }
 
+// Registered by hand rather than through @customElement, which defines
+// unconditionally: an install that collected a duplicate Lovelace resource
+// loads this bundle twice, and the second define() throws during module
+// evaluation - so the card would not register at all and simply vanish.
+if (!customElements.get(ELEMENT_NAME)) {
+  customElements.define(ELEMENT_NAME, TankerkoenigCard);
+}
+
 if (typeof window !== 'undefined') {
   window.customCards = window.customCards || [];
-  window.customCards.push({
-    type: ELEMENT_NAME,
-    name: 'Tankerkönig Card',
-    description: 'A Lovelace card to display German fuel prices from Tankerkönig.',
-    documentationURL: 'https://github.com/timmaurice/lovelace-tankerkoenig-card',
-  });
+  if (!window.customCards.some((card) => card.type === ELEMENT_NAME)) {
+    window.customCards.push({
+      type: ELEMENT_NAME,
+      name: 'Tankerkönig Card',
+      description: 'A Lovelace card to display German fuel prices from Tankerkönig.',
+      documentationURL: 'https://github.com/timmaurice/lovelace-tankerkoenig-card',
+    });
+  }
 }
