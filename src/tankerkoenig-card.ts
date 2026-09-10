@@ -63,6 +63,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @state() private _expandedStations: Set<string> = new Set();
   private _stationCache: Record<string, Station> | null = null;
   private _watchedEntities: Set<string> = new Set();
+  // Every entity the registry lists for a configured device, whether or not it had a state
+  // when the cache was built. Watching these is what lets an entity that only turns up later
+  // - a station added while the dashboard is open, or an integration still starting - be
+  // picked up without a page reload.
+  private _candidateEntities: Set<string> = new Set();
 
   public setConfig(config: TankerkoenigCardConfig): void {
     if (!config || !config.stations || !Array.isArray(config.stations) || config.stations.length === 0) {
@@ -115,10 +120,13 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
     }
 
+    const candidateEntities: Set<string> = new Set();
+
     config.stations.forEach((station: StationConfig) => {
       const deviceId = typeof station === 'string' ? station : (station as { device: string }).device;
 
       const deviceEntityIds = deviceToEntities[deviceId] || [];
+      deviceEntityIds.forEach((entityId) => candidateEntities.add(entityId));
 
       if (!stations[deviceId]) {
         stations[deviceId] = {};
@@ -150,6 +158,30 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
     this._stationCache = stations;
     this._watchedEntities = watchedEntities;
+    this._candidateEntities = candidateEntities;
+  }
+
+  /**
+   * Whether an entity the cache could not use has since turned up. The cache skips a registry
+   * entry that has no state yet, so without this check an entity that appeared afterwards - a
+   * station added while the dashboard is open, an integration still starting - stayed
+   * invisible until the page was reloaded.
+   *
+   * Deliberately one-directional: an entity that goes away keeps its slot so the card can say
+   * which one is missing, rather than quietly dropping a price the user configured.
+   * @param oldHass The previous Home Assistant object.
+   * @returns true when the station cache has to be rebuilt.
+   */
+  private _entitiesAppeared(oldHass: HomeAssistant): boolean {
+    // A new registry entry can add candidates the cache has never seen at all.
+    if (oldHass.entities !== this.hass.entities) return true;
+
+    for (const entityId of this._candidateEntities) {
+      if (!this._watchedEntities.has(entityId) && this.hass.states[entityId] !== undefined) {
+        return true;
+      }
+    }
+    return false;
   }
 
   protected shouldUpdate(changedProperties: Map<string | number | symbol, unknown>): boolean {
@@ -170,18 +202,22 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         this._buildStationCache(this.hass, this._config);
       }
 
+      if (this._entitiesAppeared(oldHass)) {
+        this._buildStationCache(this.hass, this._config);
+        this._fetchPriceChanges();
+        return true;
+      }
+
       let hasChanged = false;
       for (const entityId of this._watchedEntities) {
         if (oldHass.states[entityId] !== this.hass.states[entityId]) {
           hasChanged = true;
-          break;
+          // Not a break: every changed price entity has to be folded in below.
+          this._notePriceChange(oldHass, entityId);
         }
       }
 
       if (hasChanged || oldHass.language !== this.hass.language) {
-        if (hasChanged) {
-          this._fetchPriceChanges();
-        }
         return true;
       }
     }
@@ -224,6 +260,27 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
   };
 
+  /**
+   * Folds one observed state change into the price indicators.
+   *
+   * Once the card is running it already holds both the previous and the current state, which
+   * is exactly what the direction arrow needs - so there is no reason to ask the recorder for
+   * another 24 hours of history, which is what every observed change used to trigger.
+   * @param oldHass The previous Home Assistant object.
+   * @param entityId The entity whose state changed.
+   */
+  private _notePriceChange(oldHass: HomeAssistant, entityId: string): void {
+    if (!this._config?.show_price_changes) return;
+
+    const previous = resolveEntity(oldHass, entityId, { numeric: true }).value;
+    const current = resolveEntity(this.hass, entityId, { numeric: true }).value;
+    // A price that went unavailable and came back says nothing about a direction, so the
+    // previous verdict is left standing rather than being cleared at random.
+    if (previous === undefined || current === undefined || previous === current) return;
+
+    this._priceChanges = { ...this._priceChanges, [entityId]: current > previous ? 'up' : 'down' };
+  }
+
   private async _fetchPriceChanges(): Promise<void> {
     if (!this._config || !this._config.show_price_changes) return;
 
@@ -238,15 +295,24 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
     if (priceEntities.length === 0) return;
 
-    const history = await this.hass.callWS<Record<string, { s: string; lu: number }[]>>({
-      type: 'history/history_during_period',
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      entity_ids: priceEntities,
-      minimal_response: true,
-      no_attributes: true,
-      significant_changes_only: false,
-    });
+    let history: Record<string, { s: string; lu: number }[]>;
+    try {
+      history = await this.hass.callWS<Record<string, { s: string; lu: number }[]>>({
+        type: 'history/history_during_period',
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        entity_ids: priceEntities,
+        minimal_response: true,
+        no_attributes: true,
+        significant_changes_only: false,
+      });
+    } catch (error) {
+      // An install without the recorder, or one where the call simply fails, rejected here
+      // and the unhandled rejection surfaced in the console on every state change. The
+      // indicators are a nicety - the card renders perfectly well without them.
+      console.warn('tankerkoenig-card: could not load price history', error);
+      return;
+    }
 
     const newPriceChanges: Record<string, 'up' | 'down'> = {};
     for (const entityId of priceEntities) {

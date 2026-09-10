@@ -483,6 +483,56 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Entities appearing and price history', () => {
+    it('should pick up an entity that only gets a state after the first render', async () => {
+      // The registry lists the sensor from the start, but it has no state yet - an
+      // integration still starting up. The cache skipped it and nothing ever looked again,
+      // so the price stayed missing until the page was reloaded.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', diesel: '1.699' });
+      const lateState = station.states['sensor.aral_diesel'];
+      delete station.states['sensor.aral_diesel'];
+      await setupCard({ fuel_types: ['e5', 'diesel'] }, station);
+
+      expect(element.shadowRoot?.querySelectorAll('.price-container').length).toBe(1);
+
+      element.hass = { ...hass, states: { ...hass.states, 'sensor.aral_diesel': lateState } };
+      await element.updateComplete;
+
+      const containers = element.shadowRoot?.querySelectorAll('.price-container');
+      expect(containers?.length).toBe(2);
+      expect(element.shadowRoot?.querySelector('.price-container.diesel')).not.toBeNull();
+    });
+
+    it('should derive a price direction from the observed change without asking for history', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
+      (hass.callWS as Mock).mockResolvedValue({});
+      await setupCard({ show_price_changes: true }, station);
+      (hass.callWS as Mock).mockClear();
+
+      const raised = { ...hass.states['sensor.aral_e5'], state: '1.829' };
+      element.hass = { ...hass, states: { ...hass.states, 'sensor.aral_e5': raised } };
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.price-change-indicator')?.classList.contains('price-up')).toBe(true);
+      // The card already held both states; refetching 24 hours of history for all entities
+      // on every observed change was pure waste.
+      expect(hass.callWS as Mock).not.toHaveBeenCalled();
+    });
+
+    it('should survive a history call that rejects', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      (hass.callWS as Mock).mockRejectedValue(new Error('recorder is not set up'));
+
+      await setupCard({ show_price_changes: true }, station);
+      await expect(element['_fetchPriceChanges']()).resolves.toBeUndefined();
+
+      expect(warn).toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      warn.mockRestore();
+    });
+  });
+
   describe('Interactions', () => {
     it('should fire hass-more-info event on click', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
