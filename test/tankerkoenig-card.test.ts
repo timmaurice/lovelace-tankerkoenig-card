@@ -146,6 +146,27 @@ describe('TankerkoenigCard', () => {
         'You need to define at least one station entity',
       );
     });
+
+    it('should still honour the superseded show_address key', async () => {
+      // The key was declared "for backwards compatibility" and then read by nothing, so
+      // `show_address: false` printed the address anyway.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({ show_address: false }, station);
+
+      expect(element.shadowRoot?.querySelector('.address')).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('show_address'));
+      warn.mockRestore();
+    });
+
+    it('should let an explicit address part win over the legacy key', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({ show_address: false, show_city: true }, station);
+
+      expect(element.shadowRoot?.querySelector('.address')?.textContent?.trim()).toBe('Musterstadt');
+      warn.mockRestore();
+    });
   });
 
   describe('Card picker and layout', () => {

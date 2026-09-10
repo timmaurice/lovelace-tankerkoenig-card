@@ -69,13 +69,47 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   // - a station added while the dashboard is open, or an integration still starting - be
   // picked up without a page reload.
   private _candidateEntities: Set<string> = new Set();
+  // The deprecation notice for `show_address` is worth saying once, not once per card.
+  private static _warnedShowAddress = false;
 
   public setConfig(config: TankerkoenigCardConfig): void {
     if (!config || !config.stations || !Array.isArray(config.stations) || config.stations.length === 0) {
       throw new Error('You need to define at least one station entity');
     }
-    this._config = config;
+    this._config = TankerkoenigCard._migrateShowAddress(config);
     this._stationCache = null; // Invalidate cache so it recalculates on next update
+  }
+
+  /**
+   * Folds the superseded `show_address` key into the three keys that replaced it.
+   *
+   * The key was left in the type "for backwards compatibility" and then read by nothing at
+   * all, so `show_address: false` in someone's YAML printed the address anyway. It is honoured
+   * here rather than dropped, because a config that has it means it, and the user is told once
+   * which keys to move to.
+   * @param config The configuration as it was given to the card.
+   * @returns The configuration with the legacy key resolved.
+   */
+  private static _migrateShowAddress(config: TankerkoenigCardConfig): TankerkoenigCardConfig {
+    if (config.show_address === undefined) return config;
+
+    if (!TankerkoenigCard._warnedShowAddress) {
+      TankerkoenigCard._warnedShowAddress = true;
+      console.warn(
+        'tankerkoenig-card: "show_address" is deprecated - use show_street, show_postcode and show_city instead.',
+      );
+    }
+
+    if (config.show_address !== false) return config;
+
+    // An explicit part the user set stays as it is; only the parts left unsaid follow the
+    // legacy key.
+    return {
+      ...config,
+      show_street: config.show_street ?? false,
+      show_postcode: config.show_postcode ?? false,
+      show_city: config.show_city ?? false,
+    };
   }
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {

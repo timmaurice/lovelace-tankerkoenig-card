@@ -76,7 +76,11 @@ export type StationConfig = string | { device: string; logo?: string; name?: str
 export interface TankerkoenigCardConfig extends LovelaceCardConfig {
   title?: string;
   stations: StationConfig[];
-  show_address?: boolean; // for backwards compatibility
+  /**
+   * @deprecated Superseded by show_street / show_postcode / show_city. Still honoured: `false`
+   * hides the whole address, and the card warns once when the key is present.
+   */
+  show_address?: boolean;
   show_street?: boolean;
   show_postcode?: boolean;
   show_city?: boolean;
