@@ -235,8 +235,8 @@ describe('TankerkoenigCard', () => {
       const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
       expect(priceContainer).not.toBeNull();
 
-      expect(priceContainer?.style.backgroundColor).toBe('rgb(255, 0, 0)');
-      expect(priceContainer?.style.color).toBe('rgb(0, 0, 255)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-bg-color')).toBe('rgb(255, 0, 0)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-font-color')).toBe('rgb(0, 0, 255)');
     });
 
     it('should apply custom RGBA colors for price background', async () => {
@@ -246,8 +246,7 @@ describe('TankerkoenigCard', () => {
       const priceContainer = element.shadowRoot?.querySelector<HTMLElement>('.price-container');
       expect(priceContainer).not.toBeNull();
 
-      // JSDOM converts rgba to rgb if alpha is 1, but should preserve it if it's not
-      expect(priceContainer?.style.backgroundColor).toBe('rgba(255, 0, 0, 0.5)');
+      expect(priceContainer?.style.getPropertyValue('--local-price-bg-color')).toBe('rgba(255, 0, 0, 0.5)');
     });
   });
 

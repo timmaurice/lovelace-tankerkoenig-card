@@ -360,10 +360,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               attributes.station_name ||
               attributes.friendly_name;
 
-            const stationConfig = this._config.stations.find((s) =>
-              typeof s === 'string' ? s === stationId : s.device === stationId,
-            );
-
             const statusEntity = station.status ? this.hass.states[station.status] : null;
             const twentyFourSevenAttr =
               statusEntity?.attributes?.twenty_four_seven || statusEntity?.attributes?.twenty_four_seven_status;
@@ -545,30 +541,34 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     <div class="station-name-wrapper">
                       <span class="station-name">${stationName}</span>
                     </div>
-                    <div class="badge-container">
-                      ${badgeHtml}
-                      ${this._expandedStations.has(stationId) && openingHours
-                        ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
-                            ${openingHours.split(/\s*•\s*/).map((line) => {
-                              const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
-                              const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
-                              const hours = match ? match[2].trim() : '';
-                              const translatedDays = translateDays(days, this.hass);
-                              return html`
-                                <div class="opening-hours-line">
-                                  <span class="opening-hours-days">${translatedDays}</span>
-                                  ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
-                                </div>
-                              `;
-                            })}
-                          </div>`
-                        : ''}
-                    </div>
                   </div>
                   ${address ? html`<div class="row-2"><span class="address">${addressHtml}</span></div>` : ''}
-                  ${this._config.show_last_updated
+                  ${badgeHtml || this._config.show_last_updated
                     ? html`<div class="row-3">
-                        <span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>
+                        ${badgeHtml
+                          ? html`<div class="badge-container">
+                              ${badgeHtml}
+                              ${this._expandedStations.has(stationId) && openingHours
+                                ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
+                                    ${openingHours.split(/\s*•\s*/).map((line) => {
+                                      const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
+                                      const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
+                                      const hours = match ? match[2].trim() : '';
+                                      const translatedDays = translateDays(days, this.hass);
+                                      return html`
+                                        <div class="opening-hours-line">
+                                          <span class="opening-hours-days">${translatedDays}</span>
+                                          ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
+                                        </div>
+                                      `;
+                                    })}
+                                  </div>`
+                                : ''}
+                            </div>`
+                          : ''}
+                        ${this._config.show_last_updated
+                          ? html`<span class="last-updated">${formatDate(stateObj.last_updated, this.hass)}</span>`
+                          : ''}
                       </div>`
                     : ''}
                 </div>
@@ -595,8 +595,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     }
 
                     const containerStyle = {
-                      'background-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
-                      color: (this._config.price_font_color as string) || 'var(--primary-text-color)',
+                      '--local-price-bg-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
+                      '--local-price-font-color': (this._config.price_font_color as string) || 'var(--primary-text-color)',
                     };
 
                     const scale = (this._config.font_scale || 100) / 100;
@@ -613,7 +613,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                       this._config.show_price_changes && !isUnavailable ? this._priceChanges[entityId] || '' : '';
 
                     return html`<div
-                      class="price-container"
+                      class="price-container ${fuel}"
                       style=${styleMap(containerStyle)}
                       @click=${() => this._handleMoreInfo(entityId)}
                       @keydown=${(e: KeyboardEvent) => {

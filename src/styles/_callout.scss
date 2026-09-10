@@ -1,0 +1,70 @@
+.opening-hours-callout {
+  align-items: flex-start;
+  animation: fadeIn 0.15s ease-in-out;
+  background-color: var(
+    --tooltip-background-color,
+    var(--secondary-background-color, var(--card-background-color, #202020))
+  );
+  border: 1px solid var(--tooltip-border-color, var(--divider-color));
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  color: var(--tooltip-text-color, var(--primary-text-color, #ffffff));
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82em;
+  gap: 6px;
+  left: 50%;
+  max-width: 320px;
+  padding: 10px 14px;
+  position: absolute;
+  top: 24px;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 99;
+
+  .opening-hours-line {
+    align-items: center;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .opening-hours-days {
+    color: var(--tooltip-text-color, var(--secondary-text-color));
+    font-weight: 500;
+    opacity: 0.8;
+  }
+
+  .opening-hours-time {
+    color: var(--tooltip-text-color, var(--primary-text-color));
+    font-family: var(--paper-font-code_-_font-family, monospace);
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  &::before {
+    border-color: transparent transparent var(--tooltip-border-color, var(--divider-color)) transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: 50%;
+    position: absolute;
+    top: -6px;
+    transform: translateX(-50%);
+  }
+
+  &::after {
+    border-color: transparent transparent
+      var(--tooltip-background-color, var(--secondary-background-color, var(--card-background-color, #202020)))
+      transparent;
+    border-style: solid;
+    border-width: 0 6px 6px 6px;
+    content: '';
+    left: 50%;
+    position: absolute;
+    top: -5px;
+    transform: translateX(-50%);
+  }
+}

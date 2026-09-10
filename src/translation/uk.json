@@ -58,6 +58,8 @@
     "station_not_found": "Станцію не знайдено: {station}",
     "click_for_hours": "Клацніть, щоб переглянути години роботи",
     "twenty_four_seven_badge": "24/7",
+    "open": "Відчинено",
+    "closed": "Зачинено",
     "closes_soon": "Зачиняється незабаром",
     "closes_at": "Зачиняється о {time}",
     "opens_at": "Відчиняється о {time}",

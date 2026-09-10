@@ -58,6 +58,8 @@
     "station_not_found": "Station not found: {station}",
     "click_for_hours": "Click to show/hide opening hours",
     "twenty_four_seven_badge": "24/7",
+    "open": "Open",
+    "closed": "Closed",
     "closes_soon": "Closes soon",
     "closes_at": "Closes at {time}",
     "opens_at": "Opens at {time}",

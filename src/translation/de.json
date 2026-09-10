@@ -57,6 +57,8 @@
     "station_not_found": "Tankstelle nicht gefunden: {station}",
     "click_for_hours": "Klicken für Öffnungszeiten",
     "twenty_four_seven_badge": "24/7",
+    "open": "Offen",
+    "closed": "Geschlossen",
     "closes_soon": "Schließt bald",
     "closes_at": "Schließt um {time}",
     "opens_at": "Öffnet um {time}",

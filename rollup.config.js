@@ -52,7 +52,11 @@ export default {
           style: dev ? 'expanded' : 'compressed',
           loadPaths: [path.dirname(filePath)],
         });
-        return result.css.toString();
+        let css = result.css.toString();
+        if (css.charCodeAt(0) === 0xFEFF) {
+          css = css.slice(1);
+        }
+        return css;
       },
     }),
     json({ compact: true }),

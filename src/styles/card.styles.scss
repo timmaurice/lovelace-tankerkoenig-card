@@ -1,3 +1,7 @@
+@use 'badges';
+@use 'callout';
+@use 'prices';
+
 :host ::slotted(.card-content),
 .card-content {
   container-name: tankerkoenig-card;
@@ -14,9 +18,17 @@
 
 .station {
   align-items: center;
+  border-radius: 8px;
   display: flex;
   gap: 12px;
+  margin: -6px -8px;
+  padding: 6px 8px;
   position: relative;
+  transition: background-color 0.2s ease-in-out;
+
+  &:hover {
+    background-color: var(--hover-color, rgba(255, 255, 255, 0.03));
+  }
 
   &.closed {
     filter: grayscale(1);
@@ -41,6 +53,7 @@
   line-height: 0;
 
   .logo {
+    border-radius: 4px;
     height: 40px;
     object-fit: contain;
     width: 40px;
@@ -66,12 +79,53 @@
   overflow: hidden;
 }
 
+.row-2 {
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.row-3 {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+  position: relative;
+}
+
 .badge-container {
   align-items: center;
   display: inline-flex;
   flex-shrink: 0;
   gap: 6px;
   position: relative;
+}
+
+.address {
+  color: var(--secondary-text-color);
+  display: block;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.last-updated {
+  color: var(--secondary-text-color);
+  font-size: 0.8em;
+  opacity: 0.65;
+}
+
+.badge-container + .last-updated::before {
+  content: '•';
+  margin-right: 8px;
+  opacity: 0.5;
+}
+
+@container tankerkoenig-card (max-width: 400px) {
+  .badge-container + .last-updated::before {
+    display: none;
+  }
 }
 
 .station-name {
@@ -87,126 +141,6 @@
     animation: marquee 5s linear infinite;
     overflow: visible;
     width: fit-content;
-  }
-}
-
-.badge {
-  border-radius: 4px;
-  font-size: 0.65em;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-  padding: 2px 5px;
-  text-transform: uppercase;
-  transition:
-    transform 0.1s ease,
-    filter 0.1s ease;
-  white-space: nowrap;
-
-  &[title]:not([title='']) {
-    cursor: pointer;
-
-    &:hover {
-      filter: brightness(1.1);
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-  }
-}
-
-.badge-247 {
-  background-color: rgba(0, 150, 136, 0.15);
-  border: 1px solid rgba(0, 150, 136, 0.3);
-  color: var(--state-binary_sensor-active-color, #009688);
-}
-
-.badge-open {
-  background-color: rgba(76, 175, 80, 0.15);
-  border: 1px solid rgba(76, 175, 80, 0.3);
-  color: var(--success-color, #4caf50);
-}
-
-.badge-closing-soon {
-  background-color: rgba(255, 152, 0, 0.15);
-  border: 1px solid rgba(255, 152, 0, 0.3);
-  color: var(--warning-color, #ff9800);
-}
-
-.badge-closed {
-  background-color: rgba(244, 67, 54, 0.15);
-  border: 1px solid rgba(244, 67, 54, 0.3);
-  color: var(--error-color, #f44336);
-}
-
-.opening-hours-callout {
-  align-items: flex-start;
-  animation: fadeIn 0.15s ease-in-out;
-  background-color: var(
-    --tooltip-background-color,
-    var(--secondary-background-color, var(--card-background-color, #202020))
-  );
-  border: 1px solid var(--tooltip-border-color, var(--divider-color));
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  box-sizing: border-box;
-  color: var(--tooltip-text-color, var(--primary-text-color, #ffffff));
-  display: flex;
-  flex-direction: column;
-  font-size: 0.82em;
-  gap: 6px;
-  left: 50%;
-  max-width: 320px;
-  padding: 10px 14px;
-  position: absolute;
-  top: 24px;
-  transform: translateX(-50%);
-  width: max-content;
-  z-index: 99;
-
-  .opening-hours-line {
-    align-items: center;
-    display: flex;
-    gap: 16px;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .opening-hours-days {
-    color: var(--tooltip-text-color, var(--secondary-text-color));
-    font-weight: 500;
-    opacity: 0.8;
-  }
-
-  .opening-hours-time {
-    color: var(--tooltip-text-color, var(--primary-text-color));
-    font-family: var(--paper-font-code_-_font-family, monospace);
-    font-weight: bold;
-    white-space: nowrap;
-  }
-
-  &::before {
-    border-color: transparent transparent var(--tooltip-border-color, var(--divider-color)) transparent;
-    border-style: solid;
-    border-width: 0 6px 6px 6px;
-    content: '';
-    left: 50%;
-    position: absolute;
-    top: -6px;
-    transform: translateX(-50%);
-  }
-
-  &::after {
-    border-color: transparent transparent
-      var(--tooltip-background-color, var(--secondary-background-color, var(--card-background-color, #202020)))
-      transparent;
-    border-style: solid;
-    border-width: 0 6px 6px 6px;
-    content: '';
-    left: 50%;
-    position: absolute;
-    top: -5px;
-    transform: translateX(-50%);
   }
 }
 
@@ -240,89 +174,4 @@
     opacity: 1;
     transform: translate(-50%, 0);
   }
-}
-
-.prices {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  justify-content: flex-end;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.price-container {
-  background-color: var(--divider-color);
-  border-radius: 4px;
-  color: var(--primary-text-color);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  padding: 4px 8px;
-}
-
-.price {
-  font-family:
-    'Digital-7', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New',
-    monospace;
-  line-height: 1;
-  text-shadow: none;
-}
-
-.fuel-header {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-}
-
-.price sup {
-  font-size: 0.6em;
-}
-
-.currency {
-  font-size: 0.7em;
-  font-weight: normal;
-  margin-left: 2px;
-  opacity: 0.7;
-}
-
-.price-change-indicator {
-  font-size: 1em;
-  margin: 0 4px;
-  vertical-align: middle;
-}
-
-.price-change-indicator.price-up::after {
-  color: var(--error-color);
-  content: '▲';
-}
-
-.price-change-indicator.price-down::after {
-  color: var(--success-color);
-  content: '▼';
-}
-
-@container tankerkoenig-card (max-width: 400px) {
-  .prices {
-    flex-direction: column;
-  }
-
-  .price-container {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-
-  .prices.prices-side-by-side {
-    flex-direction: row;
-  }
-
-  .prices.prices-side-by-side .price-container {
-    flex-direction: column;
-  }
-}
-
-.price-container:focus-visible,
-.badge[tabindex='0']:focus-visible {
-  outline: 2px solid var(--accent-color, var(--primary-color, #03a9f4));
-  outline-offset: 2px;
 }
