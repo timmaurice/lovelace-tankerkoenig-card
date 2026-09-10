@@ -1240,6 +1240,31 @@ describe('utils', () => {
       expect(utils.getLogoUrl('PIN Service-Station')).toBe(`${LOGO_BASE_URL}pin.png`);
       expect(utils.getLogoUrl('PIN')).toBe(`${LOGO_BASE_URL}pin.png`);
     });
+
+    it('should render a brand logo through the failure guard without looping', () => {
+      // Brand lookup and failure handling share the same `src`: `getLogoUrl` produces the URL
+      // and `resolveLogoUrl` decides what actually reaches the `<img>`. A brand added to the
+      // prefix list must therefore keep both halves working — it resolves to its own logo while
+      // the host is fine, and a failure swaps in the inline placeholder instead of another
+      // remote URL on the same, unreachable host, which is what used to reload forever.
+      const url = utils.getLogoUrl('PIN Service-Station');
+      expect(url).toBe(`${LOGO_BASE_URL}pin.png`);
+      expect(utils.resolveLogoUrl(url)).toBe(url);
+
+      const img = document.createElement('img');
+      img.setAttribute('src', url);
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(utils.FALLBACK_LOGO_URL.startsWith('data:image/svg+xml,')).toBe(true);
+      // A re-render must not write the known-broken URL back over the placeholder.
+      expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+
+      // The placeholder cannot fail, and were it to reach the handler anyway it must not
+      // schedule another load.
+      utils.handleLogoError({ target: img } as unknown as Event);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
   });
 
   describe('translateDays', () => {
