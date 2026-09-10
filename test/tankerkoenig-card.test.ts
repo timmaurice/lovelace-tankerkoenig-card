@@ -824,7 +824,7 @@ describe('TankerkoenigCard', () => {
 
       const callout = element.shadowRoot?.querySelector('.opening-hours-callout');
       expect(callout).not.toBeNull();
-      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
       expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
     });
 
@@ -855,7 +855,7 @@ describe('TankerkoenigCard', () => {
       expect(callout).not.toBeNull();
       const lines = callout?.querySelectorAll('.opening-hours-line');
       expect(lines?.length).toBe(2);
-      expect(lines?.[0].querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(lines?.[0].querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
       expect(lines?.[0].querySelector('.opening-hours-time')?.textContent).toBe('08:30-19:00');
       expect(lines?.[1].querySelector('.opening-hours-days')?.textContent).toBe('Saturday');
       expect(lines?.[1].querySelector('.opening-hours-time')?.textContent).toBe('08:30-18:00');
@@ -881,7 +881,7 @@ describe('TankerkoenigCard', () => {
       // Verify callout is now visible
       callout = element.shadowRoot?.querySelector('.opening-hours-callout');
       expect(callout).not.toBeNull();
-      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Monday-Friday');
+      expect(callout?.querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
       expect(callout?.querySelector('.opening-hours-time')?.textContent).toBe('06:00-22:00');
       expect(stationDiv?.classList.contains('has-expanded-tooltip')).toBe(true);
 
@@ -1183,6 +1183,29 @@ describe('utils', () => {
     it('should map bft variations to the base bft logo', () => {
       expect(utils.getLogoUrl('bft-Tankstelle')).toBe(`${LOGO_BASE_URL}bft.png`);
       expect(utils.getLogoUrl('BFT')).toBe(`${LOGO_BASE_URL}bft.png`);
+    });
+  });
+
+  describe('translateDays', () => {
+    const hassWith = (language: string) => ({ language }) as HomeAssistant;
+
+    it('should keep an abbreviated range abbreviated', () => {
+      // 'Mo-Fr' became 'Monday-Friday', several times wider than the source text, and the
+      // callout it lives in is narrow.
+      expect(utils.translateDays('Mo-Fr', hassWith('en'))).toBe('Mon-Fri');
+      expect(utils.translateDays('Mo-Fr', hassWith('de'))).toBe('Mo-Fr');
+    });
+
+    it('should not use the accusative day form in a Ukrainian range', () => {
+      // day_6 is 'суботу' - the form the 'opens on ...' badge needs, which reads wrong on
+      // its own in a range.
+      expect(utils.translateDays('Sa', hassWith('uk'))).toBe('Сб');
+      expect(utils.translateDays('Mo-So', hassWith('uk'))).toBe('Пн-Нд');
+    });
+
+    it('should still write out a day the source writes out', () => {
+      expect(utils.translateDays('Samstag', hassWith('en'))).toBe('Saturday');
+      expect(utils.translateDays('Feiertag', hassWith('en'))).toBe('Holiday');
     });
   });
 

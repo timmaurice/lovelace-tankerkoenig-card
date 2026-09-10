@@ -650,7 +650,8 @@ export function cleanOpeningHoursDisplay(str: string): string {
   return str.replace(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g, '$1-$2').replace(/[;,]\s*/g, ' • ');
 }
 
-const TRANSLATION_MAP: Record<string, string> = {
+// Written-out day names keep their written-out translation.
+const DAY_NAME_MAP: Record<string, string> = {
   montag: 'day_1',
   dienstag: 'day_2',
   mittwoch: 'day_3',
@@ -663,15 +664,24 @@ const TRANSLATION_MAP: Record<string, string> = {
   täglich: 'daily',
   werktags: 'weekdays',
   wochentags: 'weekdays',
-  mo: 'day_1',
-  di: 'day_2',
-  mi: 'day_3',
-  do: 'day_4',
-  fr: 'day_5',
-  sa: 'day_6',
-  so: 'day_0',
+};
+
+// What the integration actually sends for a range is 'Mo-Fr'. Expanding that to
+// 'Monday-Friday' made the callout several times wider than the source text, and in Ukrainian
+// the full names are the accusative forms the 'opens on ...' badge needs - 'суботу' - which
+// reads wrong in a range. Abbreviations therefore stay abbreviations.
+const DAY_ABBREVIATION_MAP: Record<string, string> = {
+  mo: 'day_short_1',
+  di: 'day_short_2',
+  mi: 'day_short_3',
+  do: 'day_short_4',
+  fr: 'day_short_5',
+  sa: 'day_short_6',
+  so: 'day_short_0',
   fei: 'holiday',
 };
+
+const TRANSLATION_MAP: Record<string, string> = { ...DAY_NAME_MAP, ...DAY_ABBREVIATION_MAP };
 
 export function translateDays(str: string, hass: HomeAssistant): string {
   if (!str) return '';
