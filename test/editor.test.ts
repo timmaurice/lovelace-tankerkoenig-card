@@ -265,13 +265,19 @@ describe('TankerkoenigCardEditor', () => {
     });
 
     it('should let the saved configuration win over the default', async () => {
-      element.setConfig({ ...config, fuel_types: ['e5'], sort_by: 'diesel', show_only_cheapest_count: 3 });
+      // A config that sets some of the keys and not others has to come out of one data object
+      // mixed both ways round: the saved values on top, the defaults filling the rest. Asserting
+      // only the saved keys passed just as well when the form was handed the raw config, and
+      // asserting only the defaults would pass with the spread written the wrong way round.
+      element.setConfig({ ...config, sort_by: 'diesel', show_only_cheapest_count: 3 });
       await element.updateComplete;
 
       const data = displayData();
-      expect(data.fuel_types).toEqual(['e5']);
       expect(data.sort_by).toBe('diesel');
       expect(data.show_only_cheapest_count).toBe(3);
+      // Never set, so the form shows what the card renders rather than a blank.
+      expect(data.fuel_types).toEqual(['diesel', 'e10', 'e5']);
+      expect(data.show_24_7_badge).toBe(true);
     });
 
     it('should not write those defaults back into the saved configuration', async () => {
