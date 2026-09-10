@@ -20,12 +20,14 @@
     "format": "prettier . --write",
     "lint": "eslint .",
     "test": "NODE_ENV=production vitest run --reporter=verbose",
+    "test:e2e": "playwright test",
     "watch": "rollup -c -w",
     "docker:start": "docker compose up -d",
     "docker:stop": "docker compose down"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
