@@ -1,4 +1,4 @@
-import { HassEntity, HomeAssistant } from './types';
+import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
 
 /**
@@ -699,4 +699,47 @@ export function translateDays(str: string, hass: HomeAssistant): string {
     }
     return word;
   });
+}
+
+// The deprecation notice for `show_address` is worth saying once, not once per card - and
+// once per editor on top of that.
+let warnedShowAddress = false;
+
+/**
+ * Folds the superseded `show_address` key into the three keys that replaced it and drops it.
+ *
+ * The key was left in the type "for backwards compatibility" and then read by nothing at all,
+ * so `show_address: false` in someone's YAML printed the address anyway. It is honoured here
+ * rather than ignored, because a config that carries it means it, and the user is told once
+ * which keys to move to.
+ *
+ * The card and the editor share this so that a round-trip through the visual editor writes
+ * the three explicit keys back. An editor that migrated nothing showed all three address
+ * switches ON while the card hid the address, and switching one back on rebuilt the very
+ * configuration the editor had been handed - so its loop guard swallowed the change and the
+ * address could never be restored from the UI at all.
+ * @param config The configuration as it was given to the card or the editor.
+ * @returns The configuration with the legacy key resolved and removed.
+ */
+export function migrateShowAddress(config: TankerkoenigCardConfig): TankerkoenigCardConfig {
+  if (config.show_address === undefined) return config;
+
+  if (!warnedShowAddress) {
+    warnedShowAddress = true;
+    console.warn(
+      'tankerkoenig-card: "show_address" is deprecated - use show_street, show_postcode and show_city instead.',
+    );
+  }
+
+  const { show_address: legacy, ...rest } = config;
+  if (legacy !== false) return rest;
+
+  // An explicit part the user set stays as it is; only the parts left unsaid follow the
+  // legacy key.
+  return {
+    ...rest,
+    show_street: config.show_street ?? false,
+    show_postcode: config.show_postcode ?? false,
+    show_city: config.show_city ?? false,
+  };
 }

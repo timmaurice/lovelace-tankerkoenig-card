@@ -3,7 +3,7 @@ import { property, state } from 'lit/decorators.js';
 import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
-import { fireEvent, getLogoUrl, handleLogoError, resolveLogoUrl } from './utils';
+import { fireEvent, getLogoUrl, handleLogoError, migrateShowAddress, resolveLogoUrl } from './utils';
 import editorStyles from './styles/editor.styles.scss';
 
 // Conditionally define the rgba-string-color-picker to avoid registration conflicts when another card also uses it.
@@ -99,19 +99,27 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   };
 
   public setConfig(config: TankerkoenigCardConfig): void {
-    this._config = config;
+    // The deprecated `show_address` is folded into the three explicit keys here, exactly as
+    // the card folds it. Without that, the editor showed the three address switches ON for a
+    // card that hides the address, and switching one back on rebuilt the configuration the
+    // editor had been handed - so the loop guard in `_valueChanged` swallowed it, no
+    // `config-changed` was fired at all, and the address could never be restored from the UI.
+    // Working from the migrated configuration also means the next edit writes the deprecated
+    // key out of the saved YAML instead of keeping it alive forever.
+    const migrated = migrateShowAddress(config);
+    this._config = migrated;
 
-    const mappedStations = (config.stations || []).map((s) => (typeof s === 'string' ? s : s.device));
+    const mappedStations = (migrated.stations || []).map((s) => (typeof s === 'string' ? s : s.device));
     if (JSON.stringify(this._stationsData.stations) !== JSON.stringify(mappedStations)) {
       this._stationsData = { stations: mappedStations };
     }
 
     const addressData = {
-      show_street: config.show_street ?? true,
-      show_postcode: config.show_postcode ?? true,
-      show_city: config.show_city ?? true,
-      clickable_addresses: config.clickable_addresses ?? false,
-      map_provider: config.map_provider ?? 'google',
+      show_street: migrated.show_street ?? true,
+      show_postcode: migrated.show_postcode ?? true,
+      show_city: migrated.show_city ?? true,
+      clickable_addresses: migrated.clickable_addresses ?? false,
+      map_provider: migrated.map_provider ?? 'google',
     };
     if (JSON.stringify(this._addressData) !== JSON.stringify(addressData)) {
       this._addressData = addressData;

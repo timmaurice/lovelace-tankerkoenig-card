@@ -185,6 +185,60 @@ describe('TankerkoenigCardEditor', () => {
       expect(saved.stations).toEqual(['device-1', 'device-2']);
       expect('show_city' in saved).toBe(false);
     });
+
+    describe('the deprecated show_address', () => {
+      it('should show the switches in the position the card is actually rendering', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        element.setConfig({ ...config, show_address: false });
+
+        // Not "all three ON" while the card hides the address.
+        expect(element['_addressData']).toMatchObject({
+          show_street: false,
+          show_postcode: false,
+          show_city: false,
+        });
+        warn.mockRestore();
+      });
+
+      it('should let the address be switched back on instead of trapping the card', () => {
+        // The editor used to keep `show_address` and leave the switches ON. Turning
+        // show_street back on then rebuilt the configuration the editor had been handed, the
+        // loop guard matched, and no config-changed was fired at all - so the address could
+        // never be restored from the UI and the deprecated key lived forever.
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        element.setConfig({ ...config, show_address: false });
+        fireEventSpy.mockClear();
+
+        element['_valueChanged']({ detail: { value: { show_street: true } } });
+
+        expect(fireEventSpy).toHaveBeenCalledTimes(1);
+        expect(fireEventSpy.mock.calls.at(-1)?.[1]).toBe('config-changed');
+
+        const saved = savedConfig();
+        // show_street is on by default, so it is pruned rather than restated - and the two
+        // parts the user is still hiding are written out explicitly.
+        expect('show_address' in saved).toBe(false);
+        expect('show_street' in saved).toBe(false);
+        expect(saved.show_postcode).toBe(false);
+        expect(saved.show_city).toBe(false);
+        warn.mockRestore();
+      });
+
+      it('should clear the deprecated key on any edit, not just an address one', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        element.setConfig({ ...config, show_address: false });
+        fireEventSpy.mockClear();
+
+        element['_valueChanged']({ detail: { value: { show_last_updated: true } } });
+
+        const saved = savedConfig();
+        expect('show_address' in saved).toBe(false);
+        expect(saved.show_street).toBe(false);
+        expect(saved.show_postcode).toBe(false);
+        expect(saved.show_city).toBe(false);
+        warn.mockRestore();
+      });
+    });
   });
 
   describe('Effective values in the form', () => {
