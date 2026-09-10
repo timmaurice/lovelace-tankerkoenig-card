@@ -170,9 +170,80 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     return { rows: this._stationRows() + 1, columns: 12, min_rows: 2, min_columns: 6 };
   }
 
-  /** How many station rows the card paints, never fewer than one. */
+  /**
+   * How many station rows the card paints, never fewer than one.
+   *
+   * Counting `stations.length` reported the configured stations rather than the rendered
+   * ones, so `show_only_cheapest` or `hide_unavailable_stations` left the card towering over
+   * its content again - the very symptom the row count was introduced to cure. The sizing
+   * hooks run before the first render, so this asks the selection the render uses what the
+   * current hass and config will produce, rather than counting the YAML.
+   * @returns The number of station rows the card will paint.
+   */
   private _stationRows(): number {
-    return Math.max(this._config?.stations?.length ?? 1, 1);
+    if (!this._config?.stations?.length) return 1;
+    // Home Assistant may size the card before it hands it a hass. Nothing can be filtered
+    // without one, so the configured count is the best guess available at that point.
+    if (!this.hass) return this._config.stations.length;
+    return Math.max(this._visibleStations().length, 1);
+  }
+
+  /**
+   * The stations the card renders, in the order it renders them: the configured stations
+   * minus the ones the filters drop, sorted by the chosen fuel price.
+   *
+   * Shared with the sizing hooks so the height the card reports cannot disagree with what it
+   * paints.
+   * @returns The station cache entries that survive the configured filters.
+   */
+  private _visibleStations(): [string, Station][] {
+    if (!this._stationCache && this.hass) this._buildStationCache(this.hass, this._config);
+    let stationEntries = Object.entries(this._stationCache || {}) as [string, Station][];
+
+    const sortBy = this._config.sort_by;
+
+    if (this._config.hide_unavailable_stations) {
+      // Only a status that actually reads 'off' means closed. A station whose status entity
+      // is gone or unavailable is not known to be closed, so hiding it would drop a station
+      // the user configured on the strength of a guess.
+      stationEntries = stationEntries.filter(([, station]) => {
+        const status = resolveEntity(this.hass, station.status);
+        return !status.stateObj || status.problem !== undefined || status.stateObj.state === 'on';
+      });
+    }
+
+    // Reading the state straight out of hass.states threw for an entity that has since
+    // disappeared from the registry but is still in a stale station cache.
+    const sortPrice = (station: Station): number | undefined =>
+      resolveEntity(this.hass, station[sortBy as keyof Station], { numeric: true }).value;
+
+    if (sortBy && sortBy !== 'none') {
+      stationEntries.sort(([, stationA], [, stationB]) => {
+        const priceA = sortPrice(stationA);
+        const priceB = sortPrice(stationB);
+
+        if (priceA === undefined) return 1;
+        if (priceB === undefined) return -1;
+
+        return priceA - priceB;
+      });
+    }
+
+    if (this._config.show_only_cheapest && sortBy && sortBy !== 'none') {
+      const stationsWithPrice = stationEntries.filter(([, station]) => sortPrice(station) !== undefined);
+
+      if (stationsWithPrice.length > 0) {
+        const count = this._config.show_only_cheapest_count || 1;
+        if (count === 1) {
+          const minPrice = Math.min(...stationsWithPrice.map(([, station]) => sortPrice(station) as number));
+          stationEntries = stationsWithPrice.filter(([, station]) => sortPrice(station) === minPrice);
+        } else {
+          stationEntries = stationsWithPrice.slice(0, count);
+        }
+      }
+    }
+
+    return stationEntries;
   }
 
   private _buildStationCache(hass: HomeAssistant, config: TankerkoenigCardConfig): void {
@@ -260,7 +331,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       changedProperties.has('_expandedStations') ||
       changedProperties.has('_priceChanges')
     ) {
-      if (changedProperties.has('_config')) {
+      // Home Assistant sets the config before it sets a hass, and the cache is built out of
+      // the entity registry - so without this guard the very first update threw.
+      if (changedProperties.has('_config') && this.hass) {
         this._buildStationCache(this.hass, this._config);
       }
       return true;
@@ -446,50 +519,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       diesel: { label: 'Diesel' },
     };
 
-    const sortBy = this._config.sort_by;
-    if (!this._stationCache) this._buildStationCache(this.hass, this._config);
-    let stationEntries = Object.entries(this._stationCache || {}) as [string, Station][];
-
-    if (this._config.hide_unavailable_stations) {
-      // Only a status that actually reads 'off' means closed. A station whose status entity
-      // is gone or unavailable is not known to be closed, so hiding it would drop a station
-      // the user configured on the strength of a guess.
-      stationEntries = stationEntries.filter(([, station]) => {
-        const status = resolveEntity(this.hass, station.status);
-        return !status.stateObj || status.problem !== undefined || status.stateObj.state === 'on';
-      });
-    }
-
-    // Reading the state straight out of hass.states threw for an entity that has since
-    // disappeared from the registry but is still in a stale station cache.
-    const sortPrice = (station: Station): number | undefined =>
-      resolveEntity(this.hass, station[sortBy as keyof Station], { numeric: true }).value;
-
-    if (sortBy && sortBy !== 'none') {
-      stationEntries.sort(([, stationA], [, stationB]) => {
-        const priceA = sortPrice(stationA);
-        const priceB = sortPrice(stationB);
-
-        if (priceA === undefined) return 1;
-        if (priceB === undefined) return -1;
-
-        return priceA - priceB;
-      });
-    }
-
-    if (this._config.show_only_cheapest && sortBy && sortBy !== 'none') {
-      const stationsWithPrice = stationEntries.filter(([, station]) => sortPrice(station) !== undefined);
-
-      if (stationsWithPrice.length > 0) {
-        const count = this._config.show_only_cheapest_count || 1;
-        if (count === 1) {
-          const minPrice = Math.min(...stationsWithPrice.map(([, station]) => sortPrice(station) as number));
-          stationEntries = stationsWithPrice.filter(([, station]) => sortPrice(station) === minPrice);
-        } else {
-          stationEntries = stationsWithPrice.slice(0, count);
-        }
-      }
-    }
+    const stationEntries = this._visibleStations();
 
     return html`
       <ha-card .header=${this._config.title}>

@@ -222,6 +222,44 @@ describe('TankerkoenigCard', () => {
 
       expect(element.getGridOptions()).toEqual({ rows: 3, columns: 12, min_rows: 2, min_columns: 6 });
     });
+
+    it('should count the rows it renders, not the stations it was given', async () => {
+      // show_only_cheapest renders one row out of three, so counting stations.length put the
+      // card back to towering over its content - the symptom the row count was meant to cure.
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.60' });
+
+      await setupCard(
+        { sort_by: 'e10', show_only_cheapest: true, show_only_cheapest_count: 1 },
+        station1,
+        station2,
+        station3,
+      );
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      expect(element.getCardSize()).toBe(2);
+      expect(element.getGridOptions().rows).toBe(2);
+    });
+
+    it('should not count a station that hide_unavailable_stations drops', async () => {
+      const open = createMockStation('open', 'Open', 'Brand1', { e10: '1.80' });
+      const closed = createMockStation('closed', 'Closed', 'Brand2', { e10: '1.70' }, 'off');
+
+      await setupCard({ hide_unavailable_stations: true }, open, closed);
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      expect(element.getCardSize()).toBe(2);
+      expect(element.getGridOptions().rows).toBe(2);
+    });
+
+    it('should fall back to the configured count before Home Assistant hands it a hass', () => {
+      // The sizing hooks can be asked before the card has any state to filter with.
+      element.setConfig({ ...config, stations: ['device-1', 'device-2', 'device-3'] });
+
+      expect(element.getCardSize()).toBe(4);
+      expect(element.getGridOptions().rows).toBe(4);
+    });
   });
 
   describe('Rendering', () => {
