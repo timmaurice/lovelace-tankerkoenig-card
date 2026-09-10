@@ -706,6 +706,17 @@ export function translateDays(str: string, hass: HomeAssistant): string {
 let warnedShowAddress = false;
 
 /**
+ * Forgets that the `show_address` deprecation has been announced.
+ *
+ * The latch is module state that outlives an element, which is what makes "warn once" mean
+ * once per page rather than once per card. A test suite is one page, so without this a test
+ * asserting the warning only passes while it happens to be the first one to use the key.
+ */
+export function resetShowAddressWarning(): void {
+  warnedShowAddress = false;
+}
+
+/**
  * Folds the superseded `show_address` key into the three keys that replaced it and drops it.
  *
  * The key was left in the type "for backwards compatibility" and then read by nothing at all,

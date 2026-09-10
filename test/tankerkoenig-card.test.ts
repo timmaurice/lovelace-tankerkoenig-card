@@ -129,6 +129,9 @@ describe('TankerkoenigCard', () => {
     element = document.createElement('tankerkoenig-card') as TankerkoenigCard;
     document.body.appendChild(element);
     utils.resetFailedLogoUrls();
+    // The deprecation is announced once per page load, and a test suite is one page. Without
+    // this, a test asserting the warning only passes while it is the first to use the key.
+    utils.resetShowAddressWarning();
   });
 
   afterEach(() => {
@@ -165,6 +168,20 @@ describe('TankerkoenigCard', () => {
       await setupCard({ show_address: false, show_city: true }, station);
 
       expect(element.shadowRoot?.querySelector('.address')?.textContent?.trim()).toBe('Musterstadt');
+      warn.mockRestore();
+    });
+
+    it('should announce the deprecation once per page, not once per card', async () => {
+      // The latch lives in module state, so it outlives the card that tripped it. This test
+      // sits after the other show_address tests on purpose: it is the arrangement in which a
+      // suite that never resets the latch sees no warning at all.
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+
+      await setupCard({ show_address: false }, station);
+      element.setConfig({ ...config, show_address: false });
+
+      expect(warn).toHaveBeenCalledTimes(1);
       warn.mockRestore();
     });
   });
