@@ -109,4 +109,61 @@ test.describe('The opening-hours callout', () => {
     const cardBox = (await card.locator('ha-card').boundingBox())!;
     expect(calloutBox.x + calloutBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 1);
   });
+
+  test('gets the width of the card, not of the info column', async ({ page }) => {
+    // As a child of .info it was handed the card's width minus the logo, the gaps and the
+    // price column, so a multi-rule hours string wrapped far more than it had to.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/${urlPath}/0`);
+    const { card, callout } = await openFirstCallout(page);
+
+    const calloutBox = (await callout.boundingBox())!;
+    const infoBox = (await card.locator('.station').first().locator('.info').boundingBox())!;
+    const cardBox = (await card.locator('ha-card').boundingBox())!;
+
+    // Wider than the column it used to live in, and it starts to the left of it.
+    expect(calloutBox.width).toBeGreaterThan(infoBox.width);
+    expect(calloutBox.x).toBeLessThan(infoBox.x);
+    // Which is to say: the card's own content width, give or take its padding.
+    expect(calloutBox.width).toBeGreaterThan(cardBox.width * 0.85);
+    expect(calloutBox.x + calloutBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 1);
+  });
+
+  test('does not shift the row it belongs to when it opens', async ({ page }) => {
+    // .station is align-items: center, so a callout inside the row made the row taller and
+    // re-centred the logo and the price column - the row jumped under the finger that opened
+    // it. As a wrapped line of its own the callout leaves the first line's height alone.
+    await page.goto(`/${urlPath}/0`);
+
+    const card = page.locator('tankerkoenig-card');
+    await expect(card.locator('ha-card')).toBeVisible({ timeout: 60_000 });
+    const row = card.locator('.station').first();
+    const logoBefore = (await row.locator('.logo-container').boundingBox())!;
+    const pricesBefore = (await row.locator('.prices').boundingBox())!;
+
+    await openFirstCallout(page);
+
+    const logoAfter = (await row.locator('.logo-container').boundingBox())!;
+    const pricesAfter = (await row.locator('.prices').boundingBox())!;
+
+    expect(Math.abs(logoAfter.y - logoBefore.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(pricesAfter.y - pricesBefore.y)).toBeLessThanOrEqual(1);
+  });
+
+  test('points its arrow at the badge that opened it', async ({ page }) => {
+    // The arrow was pinned to the callout's own left edge, which stopped being anywhere near
+    // the badge the moment the callout spanned the card.
+    await page.goto(`/${urlPath}/0`);
+    const { card, callout } = await openFirstCallout(page);
+
+    const calloutBox = (await callout.boundingBox())!;
+    const badgeBox = (await card.locator('.station').first().locator('.badge').boundingBox())!;
+    const arrowLeft = await callout.evaluate(
+      (el) => parseFloat(window.getComputedStyle(el, '::after').left as string) || 0,
+    );
+
+    const arrowX = calloutBox.x + arrowLeft;
+    expect(arrowX).toBeGreaterThanOrEqual(badgeBox.x - 1);
+    expect(arrowX).toBeLessThanOrEqual(badgeBox.x + badgeBox.width + 1);
+  });
 });

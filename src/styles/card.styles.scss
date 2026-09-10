@@ -23,10 +23,20 @@
 }
 
 .station {
+  // Named so the callout, which is a wrapped line of this row, can work out where the badge
+  // it belongs to starts and put its arrow there.
+  --station-logo-size: 40px;
+  --station-gap: 12px;
+
   align-items: center;
   border-radius: 8px;
   display: flex;
-  gap: 12px;
+  // The opening-hours callout is a line of its own below the row. Wrapping is what gives it
+  // the card's full width, and it is also why opening it no longer re-centres the logo and
+  // the price column: align-items applies per flex line, so the first line keeps its height
+  // and its contents stay put.
+  flex-wrap: wrap;
+  gap: var(--station-gap);
   margin: -6px -8px;
   padding: 6px 8px;
   position: relative;
@@ -56,9 +66,9 @@
 
   .logo {
     border-radius: 4px;
-    height: 40px;
+    height: var(--station-logo-size, 40px);
     object-fit: contain;
-    width: 40px;
+    width: var(--station-logo-size, 40px);
   }
 }
 

@@ -738,28 +738,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                         </div>`
                       : ''
                   }
-                  <!--
-                    A row of its own below the badges, not a tooltip floating over the badge:
-                    an absolutely positioned callout covered the next station in the list.
-                  -->
-                  ${
-                    this._expandedStations.has(stationId) && openingHours
-                      ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
-                          ${openingHours.split(/\s*•\s*/).map((line) => {
-                            const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
-                            const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
-                            const hours = match ? match[2].trim() : '';
-                            const translatedDays = translateDays(days, this.hass);
-                            return html`
-                              <div class="opening-hours-line">
-                                <span class="opening-hours-days">${translatedDays}</span>
-                                ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
-                              </div>
-                            `;
-                          })}
-                        </div>`
-                      : ''
-                  }
                 </div>
                 <div
                   class="prices ${classMap({
@@ -839,6 +817,32 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     </div>`;
                   })}
                 </div>
+                <!--
+                  A line of its own beneath the whole station row, not a tooltip floating over
+                  the badge: an absolutely positioned callout covered the next station in the
+                  list. It is a sibling of the logo, the info column and the prices rather than
+                  a child of the info column, so it gets the card's width - inside .info it was
+                  the card's width minus the logo, the gaps and the price column, and a
+                  multi-rule hours string wrapped for no reason.
+                -->
+                ${
+                  this._expandedStations.has(stationId) && openingHours
+                    ? html`<div class="opening-hours-callout" @click=${(e: Event) => e.stopPropagation()}>
+                        ${openingHours.split(/\s*•\s*/).map((line) => {
+                          const match = line.match(/(.*?)(\d{1,2}:\d{2}.*)/);
+                          const days = match ? match[1].replace(/:\s*$/, '').trim() : line;
+                          const hours = match ? match[2].trim() : '';
+                          const translatedDays = translateDays(days, this.hass);
+                          return html`
+                            <div class="opening-hours-line">
+                              <span class="opening-hours-days">${translatedDays}</span>
+                              ${hours ? html`<span class="opening-hours-time">${hours}</span>` : ''}
+                            </div>
+                          `;
+                        })}
+                      </div>`
+                    : ''
+                }
               </div>
             `;
           })}
