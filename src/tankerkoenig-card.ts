@@ -7,6 +7,8 @@ import { localize } from './localize';
 import {
   fireEvent,
   formatDate,
+  formatPrice,
+  formatTimeOfDay,
   getLogoUrl,
   handleLogoError,
   resolveLogoUrl,
@@ -414,29 +416,30 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               }
             } else if (openingHours && showOpeningStatus) {
               const status = getOpeningStatus(rules, isOpen);
+              // A time is only ever rendered when the parser actually found one. Without this
+              // guard an open station whose current time falls outside every parsed range was
+              // labelled "Schliesst um " with a blank where the time should be.
+              const time = status.timeMinutes === undefined ? '' : formatTimeOfDay(status.timeMinutes, this.hass);
+
               if (status.status === 'closing_soon') {
                 badgeClass = 'badge-closing-soon';
                 badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closes_soon');
               } else if (status.status === 'open') {
                 badgeClass = 'badge-open';
-                badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closes_at', {
-                  time: status.timeLabel || '',
-                });
-              } else if (status.status === 'opening_soon') {
+                badgeText = time
+                  ? localize(this.hass, 'component.tankerkoenig-card.card.closes_at', { time })
+                  : localize(this.hass, 'component.tankerkoenig-card.card.open');
+              } else if (status.status === 'opening_soon' && time) {
                 badgeClass = 'badge-closed';
                 if (status.dayLabel === 'today') {
-                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_at', {
-                    time: status.timeLabel || '',
-                  });
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_at', { time });
                 } else if (status.dayLabel === 'tomorrow') {
-                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_tomorrow_at', {
-                    time: status.timeLabel || '',
-                  });
+                  badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_tomorrow_at', { time });
                 } else if (status.dayLabel) {
                   const dayName = localize(this.hass, `component.tankerkoenig-card.card.day_${status.dayLabel}`);
                   badgeText = localize(this.hass, 'component.tankerkoenig-card.card.opens_day_at', {
                     day: dayName,
-                    time: status.timeLabel || '',
+                    time,
                   });
                 } else {
                   badgeText = localize(this.hass, 'component.tankerkoenig-card.card.closed');
@@ -585,15 +588,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     const stateObj = this.hass.states[entityId];
                     const isUnavailable = stateObj.state === 'unavailable' || isNaN(parseFloat(stateObj.state));
 
-                    let mainPrice = '-.--';
-                    let superPrice = '-';
                     const currency = stateObj.attributes.unit_of_measurement || '';
-
-                    if (!isUnavailable) {
-                      const priceParts = stateObj.state.split('.');
-                      mainPrice = `${priceParts[0]}.${priceParts[1].substring(0, 2)}`;
-                      superPrice = priceParts[1].substring(2, 3);
-                    }
+                    // Splitting the raw state on '.' threw whenever the state carried no
+                    // decimal point at all, taking the whole card down with it.
+                    const price = isUnavailable ? null : formatPrice(stateObj.state, this.hass);
+                    const mainPrice = price ? price.main : '-.--';
+                    const superPrice = price ? price.superscript : '-';
 
                     const containerStyle = {
                       '--local-price-bg-color': (this._config.price_bg_color as string) || 'var(--divider-color)',

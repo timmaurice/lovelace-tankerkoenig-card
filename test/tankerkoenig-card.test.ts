@@ -383,6 +383,31 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Price formatting', () => {
+    it('should not throw and should still render a price state without a decimal point', async () => {
+      // The card used to split the state on '.' and index the second half unconditionally,
+      // so an integer state took the whole render down with a TypeError.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '2' });
+      await setupCard({}, station);
+
+      const priceEl = element.shadowRoot?.querySelector('.price');
+      expect(priceEl).not.toBeNull();
+      expect(priceEl?.textContent).toContain('2.00');
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+    });
+
+    it('should render the price with the decimal separator the locale asks for', async () => {
+      hass.language = 'de';
+      hass.locale = { language: 'de', number_format: 'decimal_comma', time_format: '24' };
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const priceEl = element.shadowRoot?.querySelector('.price');
+      expect(priceEl?.textContent).toContain('1,89');
+      expect(priceEl?.querySelector('sup')?.textContent).toBe('9');
+    });
+  });
+
   describe('Interactions', () => {
     it('should fire hass-more-info event on click', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.899' });
@@ -484,6 +509,41 @@ describe('TankerkoenigCard', () => {
       vi.useRealTimers();
     });
 
+    it('should fall back to a plain open badge when no closing time is known', async () => {
+      // 'Mo-Fr' hours with a station reported open on a Sunday: the parser finds no range
+      // covering now, so there is no time to put in "Closes at {time}" - and the badge used
+      // to be rendered with an empty slot where the time belongs.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-07T12:00:00')); // a Sunday
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge');
+      expect(badge?.textContent).toBe('Open');
+      expect(badge?.textContent).not.toContain('Closes at');
+
+      vi.useRealTimers();
+    });
+
+    it('should render the closing time on a 12-hour clock when the profile asks for one', async () => {
+      hass.locale = { language: 'en', number_format: 'comma_decimal', time_format: '12' };
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = '06:00-22:00';
+
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-03T12:00:00'));
+
+      await setupCard({ show_opening_status: true }, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-open');
+      expect(badge?.textContent).toBe('Closes at 10:00 PM');
+
+      vi.useRealTimers();
+    });
+
     it('should render opening times tooltip when badge is clicked and opening_hours is configured on status entity', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
       station.states[`binary_sensor.aral_status`].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
@@ -572,6 +632,69 @@ describe('TankerkoenigCard', () => {
 describe('utils', () => {
   beforeEach(() => {
     utils.resetFailedLogoUrls();
+  });
+
+  describe('locale formatting', () => {
+    const withLocale = (
+      language: string,
+      number_format: HomeAssistant['locale']['number_format'],
+      time_format: HomeAssistant['locale']['time_format'],
+    ): HomeAssistant => ({ language, locale: { language, number_format, time_format } }) as HomeAssistant;
+
+    describe('formatPrice', () => {
+      it('should split a three-decimal price into the main part and the superscript', () => {
+        const price = utils.formatPrice('1.899', withLocale('en', 'comma_decimal', '24'));
+        expect(price).toEqual({ main: '1.89', superscript: '9' });
+      });
+
+      it('should pad a state that carries no decimal point instead of throwing', () => {
+        expect(utils.formatPrice('2', withLocale('en', 'comma_decimal', '24'))).toEqual({
+          main: '2.00',
+          superscript: '0',
+        });
+      });
+
+      it('should use the German decimal comma', () => {
+        expect(utils.formatPrice('1.899', withLocale('de', 'decimal_comma', '24'))).toEqual({
+          main: '1,89',
+          superscript: '9',
+        });
+      });
+
+      it('should return null for a state that is not a number', () => {
+        expect(utils.formatPrice('unavailable', withLocale('en', 'comma_decimal', '24'))).toBeNull();
+      });
+    });
+
+    describe('formatTimeOfDay', () => {
+      it('should render a 24-hour clock with a padded hour when the profile says 24', () => {
+        // '24' is how Home Assistant serialises TimeFormat.twenty_four. It used to be
+        // ignored entirely, so an en-US user asking for 24 hours still read AM/PM.
+        expect(utils.formatTimeOfDay(6 * 60, withLocale('en', 'comma_decimal', '24'))).toBe('06:00');
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('en', 'comma_decimal', '24'))).toBe('22:00');
+      });
+
+      it('should render a 12-hour clock when the profile says 12', () => {
+        // '12' is TimeFormat.am_pm, even for a German user who picked it deliberately.
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('de', 'decimal_comma', '12'))).toBe('10:00 PM');
+      });
+
+      it('should leave the choice to the locale for language and system', () => {
+        expect(utils.formatTimeOfDay(22 * 60, withLocale('de', 'decimal_comma', 'language'))).toBe('22:00');
+        expect(utils.usesTwelveHourClock(withLocale('de', 'decimal_comma', 'system'))).toBeUndefined();
+      });
+    });
+
+    describe('formatNumber', () => {
+      it('should honour the number format of the profile', () => {
+        expect(utils.formatNumber(1234.5, withLocale('de', 'decimal_comma', '24'))).toBe('1.234,5');
+        expect(utils.formatNumber(1234.5, withLocale('en', 'comma_decimal', '24'))).toBe('1,234.5');
+      });
+
+      it('should not format at all when the profile opts out', () => {
+        expect(utils.formatNumber(1234.5, withLocale('de', 'none', '24'))).toBe('1234.5');
+      });
+    });
   });
 
   describe('handleLogoError', () => {
@@ -746,7 +869,7 @@ describe('utils', () => {
       now.setMinutes(30);
       const res = utils.getOpeningStatus(rules, true, now);
       expect(res.status).toBe('closing_soon');
-      expect(res.timeLabel).toBe('22:00');
+      expect(res.timeMinutes).toBe(22 * 60);
     });
 
     it('should return open normally when not close to closing time', () => {
@@ -766,7 +889,7 @@ describe('utils', () => {
       const res = utils.getOpeningStatus(rules, false, now);
       expect(res.status).toBe('opening_soon');
       expect(res.dayLabel).toBe('today');
-      expect(res.timeLabel).toBe('08:00');
+      expect(res.timeMinutes).toBe(8 * 60);
     });
 
     it('should return opening_soon with tomorrow label if it opens tomorrow', () => {
@@ -776,7 +899,7 @@ describe('utils', () => {
       const res = utils.getOpeningStatus(rules, false, fakeNow);
       expect(res.status).toBe('opening_soon');
       expect(res.dayLabel).toBe('tomorrow');
-      expect(res.timeLabel).toBe('08:00');
+      expect(res.timeMinutes).toBe(8 * 60);
     });
   });
 });

@@ -20,6 +20,129 @@ export const fireEvent = <T>(
   node.dispatchEvent(event);
 };
 
+// Home Assistant serialises its locale enums as these values, not as the member names the
+// frontend code uses: TimeFormat.am_pm is stored as '12' and TimeFormat.twenty_four as '24',
+// and both 'language' and 'system' mean "work it out from a locale". Matching on the member
+// names instead of these values is why a user set to 24 hours could still see AM/PM.
+const TIME_FORMAT_TWELVE = '12';
+const TIME_FORMAT_TWENTY_FOUR = '24';
+
+// The number formats map onto the locales that produce exactly the separators HA promises.
+// Grouping is irrelevant for fuel prices, but the decimal separator is not: a German user
+// must read 1,899 and never 1.899.
+const NUMBER_FORMAT_LOCALES: Record<string, string> = {
+  comma_decimal: 'en-US', // 1,234.56
+  decimal_comma: 'de-DE', // 1.234,56
+  space_comma: 'fr-FR', // 1 234,56
+  quote_decimal: 'de-CH', // 1'234.56
+};
+
+/**
+ * Picks the locale to format numbers in. `system` means "whatever the browser is set to",
+ * which is what passing no locale to Intl does.
+ * @param hass The Home Assistant object.
+ * @returns A BCP 47 tag, or undefined to fall back to the browser.
+ */
+function numberLocale(hass: HomeAssistant): string | undefined {
+  const format = hass?.locale?.number_format;
+  if (format && NUMBER_FORMAT_LOCALES[format]) return NUMBER_FORMAT_LOCALES[format];
+  if (format === 'system') return undefined;
+  return hass?.language || undefined;
+}
+
+/** Same choice for times, which have no per-format override of their own. */
+function timeLocale(hass: HomeAssistant): string | undefined {
+  return hass?.locale?.time_format === 'system' ? undefined : hass?.language || undefined;
+}
+
+/**
+ * Formats a number the way the user's Home Assistant profile asks for.
+ * @param value The number to format.
+ * @param hass The Home Assistant object, used for the locale.
+ * @param options Intl options, e.g. a fixed number of fraction digits.
+ * @returns The formatted number.
+ */
+export function formatNumber(value: number, hass: HomeAssistant, options: Intl.NumberFormatOptions = {}): string {
+  // 'none' is HA's explicit opt-out of formatting, so it must not go through Intl at all.
+  if (hass?.locale?.number_format === 'none') {
+    return options.minimumFractionDigits !== undefined ? value.toFixed(options.minimumFractionDigits) : String(value);
+  }
+  return new Intl.NumberFormat(numberLocale(hass), options).format(value);
+}
+
+/** The decimal separator the user's number format produces, read back from the formatter itself. */
+export function decimalSeparator(hass: HomeAssistant): string {
+  return formatNumber(1.1, hass, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/[\d\s]/g, '');
+}
+
+export interface FormattedPrice {
+  /** The euro amount with two decimals, e.g. `1,89`. */
+  main: string;
+  /** The third decimal the card paints as a superscript, e.g. `9`. */
+  superscript: string;
+}
+
+/**
+ * Splits a fuel price into the part the card renders large and the third decimal it renders
+ * as a superscript.
+ *
+ * The card used to do this by splitting the raw state on '.', which threw outright for a
+ * state that carries no decimal point at all (an integer price, or a station reporting
+ * `2`) and always printed an English decimal point even for a German user.
+ * @param state The raw entity state.
+ * @param hass The Home Assistant object, used for the locale.
+ * @returns The two parts, or null when the state is not a number.
+ */
+export function formatPrice(state: string, hass: HomeAssistant): FormattedPrice | null {
+  const value = parseFloat(state);
+  if (!Number.isFinite(value)) return null;
+
+  const text = formatNumber(value, hass, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const separator = decimalSeparator(hass);
+  const index = separator ? text.lastIndexOf(separator) : -1;
+  if (index === -1) {
+    return { main: text, superscript: '' };
+  }
+
+  const decimals = text.slice(index + separator.length);
+  return {
+    main: `${text.slice(0, index)}${separator}${decimals.slice(0, 2)}`,
+    superscript: decimals.slice(2, 3),
+  };
+}
+
+/**
+ * Whether the user reads a 12-hour clock.
+ * @param hass The Home Assistant object.
+ * @returns true or false when the profile is explicit, undefined when the locale decides.
+ */
+export function usesTwelveHourClock(hass: HomeAssistant): boolean | undefined {
+  const format = hass?.locale?.time_format;
+  if (format === TIME_FORMAT_TWELVE) return true;
+  if (format === TIME_FORMAT_TWENTY_FOUR) return false;
+  return undefined;
+}
+
+/**
+ * Formats a time of day given as minutes past midnight, honouring the user's clock setting.
+ * @param minutesFromMidnight Minutes since 00:00; values of 1440 and above wrap.
+ * @param hass The Home Assistant object, used for locale and clock settings.
+ * @returns The formatted time, e.g. `22:00` or `10:00 PM`.
+ */
+export function formatTimeOfDay(minutesFromMidnight: number, hass: HomeAssistant): string {
+  const date = new Date(2023, 0, 1);
+  date.setMinutes(minutesFromMidnight);
+
+  const hour12 = usesTwelveHourClock(hass);
+  return date.toLocaleTimeString(timeLocale(hass), {
+    // A 24-hour clock wants a padded hour so the badges stay the same width; a 12-hour clock
+    // conventionally does not pad, and Intl only pads 'numeric' for some locales.
+    hour: hour12 === false ? '2-digit' : 'numeric',
+    minute: '2-digit',
+    ...(hour12 === undefined ? {} : { hour12 }),
+  });
+}
+
 /**
  * Formats a date string or object into a locale-aware string.
  * If the date is today, only the time is shown.
@@ -35,20 +158,18 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
     dateObj.getMonth() === today.getMonth() &&
     dateObj.getFullYear() === today.getFullYear();
 
+  const hour12 = usesTwelveHourClock(hass);
   const options: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
+    hour: hour12 === false ? '2-digit' : 'numeric',
     minute: '2-digit',
+    ...(hour12 === undefined ? {} : { hour12 }),
   };
 
   if (!isToday) {
     Object.assign(options, { year: 'numeric', month: 'short', day: '2-digit' });
   }
 
-  if (hass.locale?.time_format === '12') {
-    options.hour12 = true;
-  }
-
-  return dateObj.toLocaleString(hass.language, options);
+  return dateObj.toLocaleString(timeLocale(hass), options);
 }
 
 const LOGO_BASE_URL =
@@ -166,7 +287,12 @@ export interface OpeningRule {
 
 export interface OpeningStatusResult {
   status: 'open' | 'closed' | 'closing_soon' | 'opening_soon' | 'unknown';
-  timeLabel?: string;
+  /**
+   * The relevant time as minutes past midnight rather than a formatted string: only the
+   * caller knows the user's clock setting, and a hard-coded `HH:MM` here reached a 12-hour
+   * user as 24-hour text.
+   */
+  timeMinutes?: number;
   dayLabel?: string;
   minutesLeft?: number;
 }
@@ -321,21 +447,16 @@ export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Dat
             : activeRange.endMin - currentMin
           : activeRange.endMin - currentMin;
 
-      const h = Math.floor(activeRange.endMin / 60)
-        .toString()
-        .padStart(2, '0');
-      const m = (activeRange.endMin % 60).toString().padStart(2, '0');
-
       if (minutesLeft <= 60 && minutesLeft >= 0) {
         return {
           status: 'closing_soon',
-          timeLabel: `${h}:${m}`,
+          timeMinutes: activeRange.endMin,
           minutesLeft,
         };
       } else {
         return {
           status: 'open',
-          timeLabel: `${h}:${m}`,
+          timeMinutes: activeRange.endMin,
         };
       }
     }
@@ -359,13 +480,9 @@ export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Dat
     }
 
     if (nextRangeToday) {
-      const h = Math.floor(nextRangeToday.startMin / 60)
-        .toString()
-        .padStart(2, '0');
-      const m = (nextRangeToday.startMin % 60).toString().padStart(2, '0');
       return {
         status: 'opening_soon',
-        timeLabel: `${h}:${m}`,
+        timeMinutes: nextRangeToday.startMin,
         dayLabel: 'today',
       };
     }
@@ -386,13 +503,9 @@ export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Dat
       }
 
       if (earliestRange) {
-        const h = Math.floor(earliestRange.startMin / 60)
-          .toString()
-          .padStart(2, '0');
-        const m = (earliestRange.startMin % 60).toString().padStart(2, '0');
         return {
           status: 'opening_soon',
-          timeLabel: `${h}:${m}`,
+          timeMinutes: earliestRange.startMin,
           dayLabel: i === 1 ? 'tomorrow' : nextDay.toString(),
         };
       }

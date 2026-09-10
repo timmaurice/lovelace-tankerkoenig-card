@@ -5,10 +5,13 @@ export interface HassDevice {
   name_by_user?: string;
 }
 
+// The serialised values, not the frontend's enum member names: TimeFormat.am_pm is stored as
+// '12' and TimeFormat.twenty_four as '24', and both enums carry a 'language' option that the
+// previous shape of this type left out entirely.
 export interface FrontendLocaleData {
   language: string;
-  number_format: 'comma_decimal' | 'decimal_comma' | 'space_comma' | 'system';
-  time_format: '12' | '24' | 'system' | 'am_pm';
+  number_format: 'language' | 'system' | 'comma_decimal' | 'decimal_comma' | 'quote_decimal' | 'space_comma' | 'none';
+  time_format: 'language' | 'system' | '12' | '24';
   // You can expand this with more properties if needed
 }
 
