@@ -12,10 +12,54 @@ if (!window.customElements.get('rgba-string-color-picker')) {
 }
 
 const GENERAL_SCHEMA = [{ name: 'title', selector: { text: {} } }];
+
+// What the card falls back to when a key is absent, mirrored from the card's own render.
+// The editor's forms have to hand ha-form a fully populated data object or the toggles show
+// the wrong position, and ha-form then emits every one of those keys back - which is how a
+// config that only says `stations:` ended up with a dozen lines restating the defaults.
+// Anything equal to its default is dropped again on the way into the saved config, so
+// switching an option back off removes the key rather than pinning the default in YAML.
+const CONFIG_DEFAULTS: Record<string, unknown> = {
+  show_street: true,
+  show_postcode: true,
+  show_city: true,
+  clickable_addresses: false,
+  map_provider: 'google',
+  show_last_updated: false,
+  show_price_changes: false,
+  hide_unavailable_stations: false,
+  show_24_7_badge: true,
+  show_opening_status: true,
+  show_only_cheapest: false,
+  show_prices_side_by_side: false,
+  sort_by: 'none',
+  font_scale: 100,
+};
 interface DialogParams {
   index: number;
   deviceId: string;
   station: StationConfig;
+}
+
+/**
+ * Strips every key whose value is the card's own default, so the saved configuration says
+ * only what the user actually chose.
+ * @param config The configuration about to be saved.
+ * @returns The same configuration without its redundant keys.
+ */
+function pruneDefaults(config: TankerkoenigCardConfig): TankerkoenigCardConfig {
+  const pruned = { ...config };
+  for (const [key, value] of Object.entries(CONFIG_DEFAULTS)) {
+    if (JSON.stringify(pruned[key]) === JSON.stringify(value)) {
+      delete pruned[key];
+    }
+  }
+  // A cleared text field - a colour, a title - hands back an empty string, which is not a
+  // value the card has any use for.
+  for (const [key, value] of Object.entries(pruned)) {
+    if (value === '' || value === undefined) delete pruned[key];
+  }
+  return pruned;
 }
 
 export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEditor {
@@ -96,6 +140,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     return !oldHass;
   }
 
+  /** The one way out of the editor, so nothing can bypass the default pruning. */
+  private _fireConfigChanged(config: TankerkoenigCardConfig): void {
+    fireEvent(this, 'config-changed', { config: pruneDefaults(config) });
+  }
+
   private _valueChanged(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }): void {
     if (!this.hass || !this._config) return;
 
@@ -104,7 +153,11 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     // Special handling for stations to preserve custom logos/names when re-ordering or removing via the selector
     // This block only executes if the 'stations' property is explicitly part of the change event.
     if (ev.detail.value.stations !== undefined) {
-      const newStations = ev.detail.value.stations || [];
+      // A picker that is opened and closed without a choice hands back an empty entry, which
+      // was written into the config and then rendered as a station that cannot be found.
+      const newStations = (ev.detail.value.stations || []).filter((station) =>
+        typeof station === 'string' ? station.trim() !== '' : Boolean(station?.device),
+      );
       updatedConfig.stations = newStations.map((deviceId) => {
         return (
           (this._config.stations || []).find((s) => (typeof s === 'string' ? s : s.device) === deviceId) || deviceId
@@ -112,29 +165,28 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       });
     }
 
+    const newConfig = pruneDefaults({ ...this._config, ...updatedConfig });
+
     // Prevent infinite loops by checking if anything actually changed
-    const newConfig = { ...this._config, ...updatedConfig };
     if (JSON.stringify(this._config) === JSON.stringify(newConfig)) {
       return;
     }
 
-    fireEvent(this, 'config-changed', { config: newConfig });
+    this._fireConfigChanged(newConfig);
   }
 
   private _updateStation(index: number, newStation: StationConfig): void {
     if (!this._config) return;
     const stations = [...(this._config.stations || [])];
     stations[index] = newStation;
-    const newConfig = { ...this._config, stations };
-    fireEvent(this, 'config-changed', { config: newConfig });
+    this._fireConfigChanged({ ...this._config, stations });
   }
 
   private _removeStation(index: number): void {
     if (!this._config) return;
     const stations = [...(this._config.stations || [])];
     stations.splice(index, 1);
-    const newConfig = { ...this._config, stations };
-    fireEvent(this, 'config-changed', { config: newConfig });
+    this._fireConfigChanged({ ...this._config, stations });
   }
 
   connectedCallback(): void {
@@ -340,10 +392,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <ha-expansion-panel
               .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.address')}
               .expanded=${this._addressExpanded}
-              @click=${(e: Event) => {
-                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
-                  this._addressExpanded = !this._addressExpanded;
-                }
+              @expanded-changed=${(e: CustomEvent<{ expanded: boolean }>) => {
+                this._addressExpanded = e.detail.expanded;
               }}
             >
               <div class="expansion-content">
@@ -413,10 +463,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <ha-expansion-panel
               .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.font')}
               .expanded=${this._fontExpanded}
-              @click=${(e: Event) => {
-                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
-                  this._fontExpanded = !this._fontExpanded;
-                }
+              @expanded-changed=${(e: CustomEvent<{ expanded: boolean }>) => {
+                this._fontExpanded = e.detail.expanded;
               }}
             >
               <div class="expansion-content">
@@ -433,11 +481,10 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                       step="1"
                       .value=${this._config.font_scale || 100}
                       @change=${(e: Event) => {
-                        const newConfig = {
+                        this._fireConfigChanged({
                           ...this._config,
                           font_scale: parseFloat((e.target as HTMLInputElement).value),
-                        };
-                        fireEvent(this, 'config-changed', { config: newConfig });
+                        });
                       }}
                     ></ha-slider>
                   </div>
@@ -447,10 +494,8 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             <ha-expansion-panel
               .header=${localize(this.hass, 'component.tankerkoenig-card.editor.groups.color')}
               .expanded=${this._colorExpanded}
-              @click=${(e: Event) => {
-                if ((e.target as HTMLElement).classList.contains('expansion-panel-summary')) {
-                  this._colorExpanded = !this._colorExpanded;
-                }
+              @expanded-changed=${(e: CustomEvent<{ expanded: boolean }>) => {
+                this._colorExpanded = e.detail.expanded;
               }}
             >
               <div class="expansion-content">
@@ -483,8 +528,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         .value=${this._config[configValue] || ''}
         .configValue=${configValue as string}
         @input=${(e: Event) => {
-          const newConfig = { ...this._config, [configValue]: (e.target as HTMLInputElement).value };
-          fireEvent(this, 'config-changed', { config: newConfig });
+          this._fireConfigChanged({ ...this._config, [configValue]: (e.target as HTMLInputElement).value });
         }}
       ></ha-input>
       <div
@@ -501,8 +545,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
           .color=${color}
           .configValue=${configValue as string}
           @color-changed=${(ev: CustomEvent) => {
-            const newConfig = { ...this._config, [configValue]: ev.detail.value };
-            fireEvent(this, 'config-changed', { config: newConfig });
+            this._fireConfigChanged({ ...this._config, [configValue]: ev.detail.value });
           }}
         ></rgba-string-color-picker>
       </div>
@@ -565,8 +608,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
 
     this._draggedIndex = null;
 
-    const newConfig = { ...this._config, stations: newStations };
-    fireEvent(this, 'config-changed', { config: newConfig });
+    this._fireConfigChanged({ ...this._config, stations: newStations });
   }
 
   private _handleDragEnter() {
