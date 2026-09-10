@@ -586,12 +586,14 @@ describe('TankerkoenigCard', () => {
   });
 
   describe('Accessibility and motion', () => {
-    it('should name the focusable station group instead of leaving it unlabelled', async () => {
+    it('should name the station group without making it a tab stop', async () => {
+      // Enter does nothing on the row itself, so a tab stop per station was twenty dead
+      // stops on a twenty-station card. The accessible name stays.
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });
       await setupCard({}, station);
 
       const stationEl = element.shadowRoot?.querySelector('.station');
-      expect(stationEl?.getAttribute('tabindex')).toBe('0');
+      expect(stationEl?.hasAttribute('tabindex')).toBe(false);
       expect(stationEl?.getAttribute('role')).toBe('group');
       expect(stationEl?.getAttribute('aria-label')).toBe('ARAL Tankstelle');
     });

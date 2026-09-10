@@ -662,7 +662,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                   unknown: isOpen === undefined,
                   'has-expanded-tooltip': this._expandedStations.has(stationId),
                 })}"
-                tabindex="0"
                 role="group"
                 aria-label=${stationName}
               >
