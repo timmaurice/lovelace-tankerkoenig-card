@@ -92,18 +92,43 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     return document.createElement(EDITOR_ELEMENT_NAME) as LovelaceCardEditor;
   }
 
-  public static getStubConfig(): Record<string, unknown> {
-    return {
-      title: 'Tankerkönig',
-      stations: [],
-      show_street: true,
-      show_postcode: true,
-      show_city: true,
-    };
+  /**
+   * The configuration the card picker starts a new card from.
+   *
+   * Home Assistant calls this before `hass` is necessarily there, and with a list of entities
+   * it suggests, so neither may be assumed. The result carries only what actually differs
+   * from the card's own defaults: baking `show_street: true` and friends into every new card
+   * wrote three lines of YAML that mean exactly nothing.
+   * @param hass The Home Assistant object, absent on an early call.
+   * @param entities Entity ids Home Assistant suggests for the card.
+   * @returns A minimal starting configuration.
+   */
+  public static getStubConfig(hass?: HomeAssistant, entities?: string[]): Record<string, unknown> {
+    const fromRegistry = Object.entries(hass?.entities ?? {})
+      .filter(([entityId, entry]) => entry.platform === 'tankerkoenig' && entityId.startsWith('sensor.'))
+      .map(([, entry]) => entry.device_id);
+
+    const fromSuggestions = (entities ?? []).map((entityId) => hass?.entities?.[entityId]?.device_id);
+
+    const device = [...fromSuggestions, ...fromRegistry].find((deviceId): deviceId is string => Boolean(deviceId));
+
+    return { title: 'Tankerkönig', stations: device ? [device] : [] };
   }
 
   public getCardSize(): number {
     return 3;
+  }
+
+  /**
+   * Sizing for the sections dashboard, which lays cards out on a twelve-column grid rather
+   * than in a masonry column. Without this the card is given the default square and a
+   * multi-station card is clipped.
+   * @returns The grid footprint, in grid units.
+   */
+  public getGridOptions(): { rows: number; columns: number; min_rows: number; min_columns: number } {
+    // One row for the card's own header and padding, then one per station row.
+    const stations = Math.max(this._config?.stations?.length ?? 1, 1);
+    return { rows: stations + 1, columns: 12, min_rows: 2, min_columns: 6 };
   }
 
   private _buildStationCache(hass: HomeAssistant, config: TankerkoenigCardConfig): void {

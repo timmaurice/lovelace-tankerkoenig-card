@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
-import type { TankerkoenigCard } from '../src/tankerkoenig-card';
+import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
 import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
 // Mock console.info
@@ -145,6 +145,46 @@ describe('TankerkoenigCard', () => {
       expect(() => element.setConfig({ type: 'custom:tankerkoenig-card', stations: [] })).toThrow(
         'You need to define at least one station entity',
       );
+    });
+  });
+
+  describe('Card picker and layout', () => {
+    it('should not throw when Home Assistant asks before hass exists', () => {
+      expect(() => TankerkoenigCardClass.getStubConfig()).not.toThrow();
+      expect(TankerkoenigCardClass.getStubConfig().stations).toEqual([]);
+    });
+
+    it('should only return keys that differ from the defaults', () => {
+      // show_street, show_postcode and show_city are all on by default, so writing them into
+      // every new card added three lines of YAML that say nothing.
+      const stub = TankerkoenigCardClass.getStubConfig();
+      expect(Object.keys(stub).sort()).toEqual(['stations', 'title']);
+    });
+
+    it('should pick the first tankerkoenig station it can find', () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      hass.entities = Object.fromEntries(
+        Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform: 'tankerkoenig' }]),
+      );
+
+      expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([station.device_id]);
+    });
+
+    it('should ignore entities of another integration', () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      hass.entities = Object.fromEntries(
+        Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform: 'demo' }]),
+      );
+
+      expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
+    });
+
+    it('should size itself by station count on a sections dashboard', async () => {
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      await setupCard({}, station1, station2);
+
+      expect(element.getGridOptions()).toEqual({ rows: 3, columns: 12, min_rows: 2, min_columns: 6 });
     });
   });
 
