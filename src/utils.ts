@@ -249,7 +249,7 @@ export function entityProblemMessage(hass: HomeAssistant, resolved: ResolvedEnti
 const LOGO_BASE_URL =
   'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
 
-const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen', 'bft'];
+const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen', 'bft', 'pin'];
 
 // A generic gas pump, inlined as a data URI. The fallback must never hit the network:
 // if the logo host is unreachable, a remote fallback fails as well and its own `error`
