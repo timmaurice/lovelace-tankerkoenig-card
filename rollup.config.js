@@ -53,7 +53,7 @@ export default {
           loadPaths: [path.dirname(filePath)],
         });
         let css = result.css.toString();
-        if (css.charCodeAt(0) === 0xFEFF) {
+        if (css.charCodeAt(0) === 0xfeff) {
           css = css.slice(1);
         }
         return css;
