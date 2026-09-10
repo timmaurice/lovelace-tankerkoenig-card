@@ -8,6 +8,8 @@ import {
   fireEvent,
   formatDate,
   getLogoUrl,
+  handleLogoError,
+  resolveLogoUrl,
   parseOpeningHours,
   getOpeningStatus,
   formatRawOpeningTimes,
@@ -531,9 +533,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 <div class="logo-container">
                   ${html`<img
                     class="logo"
-                    src=${station.logo || getLogoUrl(attributes.brand as string)}
+                    src=${resolveLogoUrl(station.logo || getLogoUrl(attributes.brand as string))}
                     alt=${attributes.brand}
-                    @error=${(e: Event) => ((e.target as HTMLImageElement).src = getLogoUrl())}
+                    @error=${handleLogoError}
                   />`}
                 </div>
                 <div class="info">

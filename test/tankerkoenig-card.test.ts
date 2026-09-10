@@ -128,6 +128,7 @@ describe('TankerkoenigCard', () => {
 
     element = document.createElement('tankerkoenig-card') as TankerkoenigCard;
     document.body.appendChild(element);
+    utils.resetFailedLogoUrls();
   });
 
   afterEach(() => {
@@ -411,6 +412,46 @@ describe('TankerkoenigCard', () => {
       const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
       expect(logo?.src).toBe(customLogoUrl);
     });
+
+    it('should fall back to the inline placeholder when the logo fails to load', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      await setupCard({}, station);
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo') as HTMLImageElement;
+      logo.dispatchEvent(new Event('error'));
+
+      // A remote fallback would fail as well on an unreachable host and loop forever.
+      expect(logo.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(logo.getAttribute('src')?.startsWith('data:image/svg+xml,')).toBe(true);
+    });
+
+    it('should keep the placeholder when a later render writes the logo again', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      const brokenLogo = 'https://example.com/broken.png';
+      const otherLogo = 'https://example.com/other.png';
+      await setupCard({ stations: [{ device: station.device_id, logo: brokenLogo }] }, station);
+
+      const logo = element.shadowRoot?.querySelector<HTMLImageElement>('.logo') as HTMLImageElement;
+      logo.dispatchEvent(new Event('error'));
+      expect(logo.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+
+      // The station list is unkeyed, so Lit reuses this <img> across renders: it commits
+      // another station's URL into the same slot and later the broken one again. Neither
+      // write may resurrect the broken URL over the placeholder.
+      element.setConfig({
+        type: 'custom:tankerkoenig-card',
+        stations: [{ device: station.device_id, logo: otherLogo }],
+      });
+      await element.updateComplete;
+      element.setConfig({
+        type: 'custom:tankerkoenig-card',
+        stations: [{ device: station.device_id, logo: brokenLogo }],
+      });
+      await element.updateComplete;
+
+      const logoAfterRerender = element.shadowRoot?.querySelector<HTMLImageElement>('.logo');
+      expect(logoAfterRerender?.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
   });
 
   describe('Opening Times and Badges Options', () => {
@@ -529,6 +570,116 @@ describe('TankerkoenigCard', () => {
 });
 
 describe('utils', () => {
+  beforeEach(() => {
+    utils.resetFailedLogoUrls();
+  });
+
+  describe('handleLogoError', () => {
+    it('should swap a broken logo for the inline placeholder', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/logo.png');
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+      expect(utils.FALLBACK_LOGO_URL.startsWith('data:image/svg+xml,')).toBe(true);
+    });
+
+    it('should fall back again after the image was recycled for another station', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/first.png');
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+
+      // Lit recycles the <img> positionally when the list is reordered, so the same node
+      // gets a different station's URL. That URL failing must fall back as well.
+      img.setAttribute('src', 'https://example.com/second.png');
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+
+    it('should not swap again when the placeholder itself reports an error', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', utils.FALLBACK_LOGO_URL);
+      let assignments = 0;
+      Object.defineProperty(img, 'src', {
+        configurable: true,
+        get: () => img.getAttribute('src') ?? '',
+        set: () => {
+          assignments += 1;
+        },
+      });
+
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(assignments).toBe(0);
+      expect(img.getAttribute('src')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+  });
+
+  describe('resolveLogoUrl', () => {
+    it('should pass through a URL that has not failed', () => {
+      expect(utils.resolveLogoUrl('https://example.com/fine.png')).toBe('https://example.com/fine.png');
+    });
+
+    it('should resolve a URL that already failed to the placeholder', () => {
+      const img = document.createElement('img');
+      img.setAttribute('src', 'https://example.com/gone.png');
+      utils.handleLogoError({ target: img } as unknown as Event);
+
+      expect(utils.resolveLogoUrl('https://example.com/gone.png')).toBe(utils.FALLBACK_LOGO_URL);
+    });
+
+    describe('failure expiry', () => {
+      const url = 'https://example.com/flaky.png';
+
+      const failOnce = (): void => {
+        const img = document.createElement('img');
+        img.setAttribute('src', url);
+        utils.handleLogoError({ target: img } as unknown as Event);
+      };
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('should still resolve to the placeholder shortly after the failure', () => {
+        failOnce();
+
+        vi.advanceTimersByTime(4 * 60 * 1000);
+
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+      });
+
+      it('should resolve to the URL again once the retry window has passed', () => {
+        failOnce();
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+
+        // A dashboard stays open for days; a transient outage must not pin the logo to the
+        // placeholder forever, so the mark is forgotten once the retry window has elapsed.
+        vi.advanceTimersByTime(5 * 60 * 1000);
+
+        expect(utils.resolveLogoUrl(url)).toBe(url);
+      });
+
+      it('should re-arm the placeholder when the retried URL fails again', () => {
+        failOnce();
+        vi.advanceTimersByTime(5 * 60 * 1000);
+        expect(utils.resolveLogoUrl(url)).toBe(url);
+
+        failOnce();
+
+        expect(utils.resolveLogoUrl(url)).toBe(utils.FALLBACK_LOGO_URL);
+      });
+    });
+  });
+
   describe('getLogoUrl', () => {
     const LOGO_BASE_URL =
       'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';

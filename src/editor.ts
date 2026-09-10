@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { RgbaStringBase } from 'vanilla-colorful/lib/entrypoints/rgba-string';
 import { HomeAssistant, HassEntity, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types';
 import { localize } from './localize';
-import { fireEvent, getLogoUrl } from './utils';
+import { fireEvent, getLogoUrl, handleLogoError, resolveLogoUrl } from './utils';
 import editorStyles from './styles/editor.styles.scss';
 
 // Conditionally define the rgba-string-color-picker to avoid registration conflicts when another card also uses it.
@@ -16,19 +16,6 @@ interface DialogParams {
   index: number;
   deviceId: string;
   station: StationConfig;
-}
-
-if (!window.customElements.get('ha-expansion-panel')) {
-  window.customElements.define(
-    'ha-expansion-panel',
-    class extends LitElement {
-      static styles = css`
-        ha-expansion-panel {
-          display: block;
-        }
-      `;
-    },
-  );
 }
 
 @customElement('tankerkoenig-card-editor')
@@ -614,11 +601,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         @drop=${(e: DragEvent) => this._handleDrop(e, index)}
       >
         <div class="drag-handle"><ha-icon icon="mdi:drag"></ha-icon></div>
-        <img
-          class="logo"
-          src=${customLogo || defaultLogo}
-          @error=${(e: Event) => ((e.target as HTMLImageElement).src = getLogoUrl())}
-        />
+        <img class="logo" src=${resolveLogoUrl(customLogo || defaultLogo)} @error=${handleLogoError} />
         <span class="station-name">${stationName}</span>
         <ha-icon-button
           .label=${localize(this.hass, 'component.tankerkoenig-card.editor.customize')}

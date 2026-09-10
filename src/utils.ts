@@ -56,6 +56,81 @@ const LOGO_BASE_URL =
 
 const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen', 'bft'];
 
+// A generic gas pump, inlined as a data URI. The fallback must never hit the network:
+// if the logo host is unreachable, a remote fallback fails as well and its own `error`
+// event swaps in the next one, which loops until the browser gives up.
+const FALLBACK_LOGO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+  '<path fill="#888" d="M18,10A1,1 0 0,1 17,9A1,1 0 0,1 18,8A1,1 0 0,1 19,9A1,1 0 0,1 18,10M12,10H6V5H12M19.77,' +
+  '7.23L19.78,7.22L16.06,3.5L15,4.56L17.11,6.67C16.17,7.03 15.5,7.93 15.5,9A2.5,2.5 0 0,0 18,11.5C18.36,11.5 ' +
+  '18.69,11.42 19,11.29V18.5A1,1 0 0,1 18,19.5A1,1 0 0,1 17,18.5V14A2,2 0 0,0 15,12H14V5A2,2 0 0,0 12,3H6A2,2 ' +
+  '0 0,0 4,5V21H14V13.5H15.5V18.5A2.5,2.5 0 0,0 18,21A2.5,2.5 0 0,0 20.5,18.5V9C20.5,8.31 20.22,7.68 19.77,7.23Z"/>' +
+  '</svg>';
+
+/** Static placeholder shown when a station logo cannot be loaded. */
+export const FALLBACK_LOGO_URL = `data:image/svg+xml,${encodeURIComponent(FALLBACK_LOGO_SVG)}`;
+
+// How long a logo URL stays marked as broken before it is probed again. A dashboard is a
+// long-lived SPA that often stays open for days, so a permanent mark would pin a logo to the
+// placeholder for the whole life of the tab after a single transient failure — a wifi blip, a
+// CDN hiccup, or images racing a Home Assistant restart. Five minutes is comfortably longer
+// than those transients (an HA restart and the frontend's reconnect backoff are seconds to
+// about a minute), so the anti-loop guard still covers a whole outage and every re-render
+// during it, while a host that recovers is picked up on the next render a few minutes later
+// instead of never.
+const LOGO_FAILURE_TTL_MS = 5 * 60 * 1000;
+
+// Timestamps of URLs that failed to load. Keyed by URL rather than by element: both lists
+// rendering these logos are unkeyed `.map()`s, so Lit recycles the `<img>` nodes positionally
+// (the card sorts by price, the editor reorders by drag and drop). An element-scoped guard
+// would leave a recycled `<img>` unable to fall back for its new, different station.
+const failedLogoUrls = new Map<string, number>();
+
+/**
+ * Resolves the `src` for a station logo, substituting the inline placeholder for any URL that
+ * failed within the last `LOGO_FAILURE_TTL_MS`. Templates must render through this so a later
+ * re-render cannot write the known-broken remote URL back over the placeholder. An older
+ * failure is forgotten, so a host that has come back is tried again.
+ * @param url The logo URL the configuration or brand lookup yields.
+ * @returns The URL to render.
+ */
+export function resolveLogoUrl(url: string): string {
+  const failedAt = failedLogoUrls.get(url);
+  if (failedAt === undefined) {
+    return url;
+  }
+  if (Date.now() - failedAt >= LOGO_FAILURE_TTL_MS) {
+    // Stale mark: drop it and let the image try the real URL again. If it is still broken the
+    // `error` handler simply re-arms the mark, so this can never turn into a tight retry loop.
+    failedLogoUrls.delete(url);
+    return url;
+  }
+  return FALLBACK_LOGO_URL;
+}
+
+/**
+ * Swaps a logo that failed to load for the inline placeholder and records when that URL failed,
+ * so every image showing that URL — now or after a re-render — resolves to the placeholder until
+ * the failure ages out.
+ * @param e The `error` event fired by the `<img>` element.
+ */
+export function handleLogoError(e: Event): void {
+  const img = e.target as HTMLImageElement;
+  const failedUrl = img.getAttribute('src');
+  // The placeholder is inline and cannot fail, but bail out on it regardless so a broken
+  // data URI could never re-enter this handler in a loop.
+  if (!failedUrl || failedUrl === FALLBACK_LOGO_URL) {
+    return;
+  }
+  failedLogoUrls.set(failedUrl, Date.now());
+  img.src = FALLBACK_LOGO_URL;
+}
+
+/** Clears the remembered logo failures. Exposed so tests can start from a clean slate. */
+export function resetFailedLogoUrls(): void {
+  failedLogoUrls.clear();
+}
+
 /**
  * Generates a URL for a gas station logo based on the brand name.
  * @param brand The brand name of the gas station.
