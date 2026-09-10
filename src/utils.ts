@@ -320,9 +320,12 @@ const DAY_MAP: Record<string, number> = {
   so: 0,
   sun: 0,
   sonntag: 0,
-  feiertag: 0,
-  holiday: 0,
 };
+
+// Holiday tokens are recognised, but deliberately map to no weekday at all. They used to map
+// to Sunday, which made a "Feiertag 08:00-20:00" line dictate the card's Sunday hours - a
+// station closed on Sundays was then reported as opening at 08:00 every Sunday.
+const HOLIDAY_TOKENS = new Set(['feiertag', 'feiertage', 'fei', 'holiday', 'holidays']);
 
 export function parseOpeningHours(str: string): OpeningRule[] {
   const rules: OpeningRule[] = [];
@@ -385,14 +388,22 @@ export function parseOpeningHours(str: string): OpeningRule[] {
 function parseDays(dayStr: string): number[] {
   const days: number[] = [];
   const parts = dayStr.toLowerCase().split(/[\s,]+/);
+  // Tracked separately from `days`: a rule that names only holidays applies to no weekday,
+  // which is not the same as a rule whose day names we failed to understand at all.
+  let recognised = false;
 
   for (const part of parts) {
     if (!part) continue;
+    if (HOLIDAY_TOKENS.has(part.trim())) {
+      recognised = true;
+      continue;
+    }
     if (part.includes('-')) {
       const [startStr, endStr] = part.split('-');
       const start = DAY_MAP[startStr.trim()];
       const end = DAY_MAP[endStr.trim()];
       if (start !== undefined && end !== undefined) {
+        recognised = true;
         let current = start;
         while (current !== end) {
           days.push(current);
@@ -403,12 +414,15 @@ function parseDays(dayStr: string): number[] {
     } else {
       const day = DAY_MAP[part.trim()];
       if (day !== undefined) {
+        recognised = true;
         days.push(day);
       }
     }
   }
 
-  return days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6];
+  if (days.length > 0) return days;
+  // Nothing we could read - assume the hours are meant for every day, as before.
+  return recognised ? [] : [0, 1, 2, 3, 4, 5, 6];
 }
 
 export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Date = new Date()): OpeningStatusResult {

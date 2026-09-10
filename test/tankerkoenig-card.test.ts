@@ -852,6 +852,19 @@ describe('utils', () => {
       expect(rules[1].days).toEqual([6, 0]);
       expect(rules[1].ranges).toEqual([{ startMin: 480, endMin: 1200 }]);
     });
+    it('should not let holiday hours dictate Sunday', () => {
+      // 'Feiertag' used to map onto Sunday, so a station closed on Sundays was reported as
+      // opening at 08:00 every Sunday because of its holiday line.
+      const rules = utils.parseOpeningHours('Mo-Sa: 06:00-22:00, Feiertag: 08:00-20:00');
+      expect(rules.length).toBe(2);
+      expect(rules[0].days).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(rules[1].days).toEqual([]);
+    });
+
+    it('should still treat unreadable day names as daily', () => {
+      const rules = utils.parseOpeningHours('Immer: 06:00-22:00');
+      expect(rules[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    });
 
     it('should parse comma-separated days correctly', () => {
       const rules = utils.parseOpeningHours('Mo, Di, Mi: 07:00-20:00');
