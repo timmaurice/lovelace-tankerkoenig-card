@@ -1325,4 +1325,14 @@ describe('Translations', () => {
     expect(keys[0]).toEqual(keys[1]);
     expect(keys[1]).toEqual(keys[2]);
   });
+
+  it('should label hide_unavailable_stations by what the card actually does', async () => {
+    // The key is named for availability but the card hides stations that are closed, which is
+    // what the README documents. The label used to say "Hide Unavailable Stations".
+    const [de, en, uk] = await Promise.all(languages.map((language) => import(`../src/translation/${language}.json`)));
+
+    expect(en.default.editor.hide_unavailable_stations).toMatch(/closed/i);
+    expect(de.default.editor.hide_unavailable_stations).toMatch(/geschlossen/i);
+    expect(uk.default.editor.hide_unavailable_stations).toMatch(/зачинен/i);
+  });
 });

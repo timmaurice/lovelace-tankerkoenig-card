@@ -23,7 +23,7 @@
     "show_last_updated": "Zeitstempel der letzten Aktualisierung anzeigen",
     "show_price_changes": "Preisänderungen anzeigen",
     "fuel_types": "Reihenfolge der Kraftstoffarten",
-    "hide_unavailable_stations": "Nicht verfügbare Tankstellen ausblenden",
+    "hide_unavailable_stations": "Geschlossene Tankstellen ausblenden",
     "sort_by": "Tankstellen nach Preis sortieren",
     "show_only_cheapest": "Nur die günstigste(n) Tankstelle(n) anzeigen",
     "show_only_cheapest_count": "Anzahl der günstigsten Tankstellen (Sortierung erforderlich)",

@@ -23,7 +23,7 @@
     "show_last_updated": "Show Last Updated Timestamp",
     "show_price_changes": "Show Price Changes",
     "fuel_types": "Fuel Types Order",
-    "hide_unavailable_stations": "Hide Unavailable Stations",
+    "hide_unavailable_stations": "Hide Closed Stations",
     "sort_by": "Sort Stations by Price",
     "show_only_cheapest": "Show Only Cheapest Station(s)",
     "show_only_cheapest_count": "Number of Cheapest Stations (requires sort)",
