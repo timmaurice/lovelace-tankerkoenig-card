@@ -179,6 +179,21 @@ describe('TankerkoenigCard', () => {
       expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
     });
 
+    it('should report a card size that follows the station count', async () => {
+      // A constant 3 made a one-station card tower over its content and clipped a long one
+      // in a masonry column.
+      const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
+      const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
+      const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.60' });
+
+      await setupCard({}, station1);
+      expect(element.getCardSize()).toBe(2);
+
+      await setupCard({}, station1, station2, station3);
+      expect(element.getCardSize()).toBe(4);
+      expect(element.getCardSize()).toBe(element.getGridOptions().rows);
+    });
+
     it('should size itself by station count on a sections dashboard', async () => {
       const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
       const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });

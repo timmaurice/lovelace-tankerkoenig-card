@@ -115,8 +115,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     return { title: 'Tankerkönig', stations: device ? [device] : [] };
   }
 
+  /**
+   * The card's height in masonry rows. A constant 3 made a one-station card tower over its
+   * content and clipped everything past the second station on a ten-station card, so it
+   * follows the same count `getGridOptions` does.
+   * @returns The row count, one for the header and one per station.
+   */
   public getCardSize(): number {
-    return 3;
+    return this._stationRows() + 1;
   }
 
   /**
@@ -127,8 +133,12 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
    */
   public getGridOptions(): { rows: number; columns: number; min_rows: number; min_columns: number } {
     // One row for the card's own header and padding, then one per station row.
-    const stations = Math.max(this._config?.stations?.length ?? 1, 1);
-    return { rows: stations + 1, columns: 12, min_rows: 2, min_columns: 6 };
+    return { rows: this._stationRows() + 1, columns: 12, min_rows: 2, min_columns: 6 };
+  }
+
+  /** How many station rows the card paints, never fewer than one. */
+  private _stationRows(): number {
+    return Math.max(this._config?.stations?.length ?? 1, 1);
   }
 
   private _buildStationCache(hass: HomeAssistant, config: TankerkoenigCardConfig): void {
