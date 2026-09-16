@@ -4,6 +4,7 @@
   flex-shrink: 0;
   gap: 8px;
   justify-content: flex-end;
+  margin-left: auto;
   text-align: center;
   white-space: nowrap;
 }
@@ -91,6 +92,7 @@
   .prices {
     display: flex;
     flex-direction: column;
+    width: fit-content;
   }
 
   .price-container {
