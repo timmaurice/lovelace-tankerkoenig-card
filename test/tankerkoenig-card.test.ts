@@ -229,15 +229,22 @@ describe('TankerkoenigCard', () => {
 
       await setupCard({}, station1, station2, station3);
       expect(element.getCardSize()).toBe(4);
-      expect(element.getCardSize()).toBe(element.getGridOptions().rows);
     });
 
-    it('should size itself by station count on a sections dashboard', async () => {
+    it('should let the sections grid measure it', async () => {
+      // A row per station plus one for the header was already on its second
+      // attempt, and a station row is not one grid row anyway - whether it
+      // wraps depends on a column width this code cannot see.
       const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
       const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
       await setupCard({}, station1, station2);
 
-      expect(element.getGridOptions()).toEqual({ rows: 3, columns: 12, min_rows: 2, min_columns: 6 });
+      expect(element.getGridOptions()).toEqual({
+        columns: 'full',
+        min_columns: 6,
+        rows: 'auto',
+        min_rows: 2,
+      });
     });
 
     it('should count the rows it renders, not the stations it was given', async () => {
@@ -256,7 +263,6 @@ describe('TankerkoenigCard', () => {
 
       expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
       expect(element.getCardSize()).toBe(2);
-      expect(element.getGridOptions().rows).toBe(2);
     });
 
     it('should not count a station that hide_unavailable_stations drops', async () => {
@@ -267,15 +273,15 @@ describe('TankerkoenigCard', () => {
 
       expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
       expect(element.getCardSize()).toBe(2);
-      expect(element.getGridOptions().rows).toBe(2);
     });
 
     it('should fall back to the configured count before Home Assistant hands it a hass', () => {
       // The sizing hooks can be asked before the card has any state to filter with.
+      // Only masonry still needs a number; the sections grid measures instead.
       element.setConfig({ ...config, stations: ['device-1', 'device-2', 'device-3'] });
 
       expect(element.getCardSize()).toBe(4);
-      expect(element.getGridOptions().rows).toBe(4);
+      expect(element.getGridOptions().rows).toBe('auto');
     });
   });
 

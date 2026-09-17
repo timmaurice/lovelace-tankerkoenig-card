@@ -1,7 +1,14 @@
 import { LitElement, TemplateResult, html, css, unsafeCSS } from 'lit';
 import { property, state, query } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
-import { HomeAssistant, LovelaceCard, LovelaceCardEditor, StationConfig, TankerkoenigCardConfig } from './types.js';
+import {
+  HomeAssistant,
+  LovelaceCard,
+  LovelaceCardEditor,
+  StationConfig,
+  TankerkoenigCardConfig,
+  LovelaceGridOptions,
+} from './types.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { localize } from './localize';
@@ -129,11 +136,17 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
    * Sizing for the sections dashboard, which lays cards out on a twelve-column grid rather
    * than in a masonry column. Without this the card is given the default square and a
    * multi-station card is clipped.
+   *
+   * `rows: 'auto'` rather than a row per station plus one for the header. That count was
+   * already on its second attempt - it had to learn to ask `_stationRows()` what the
+   * filters leave rather than count the YAML - and a station row is not one grid row
+   * anyway: whether it wraps depends on the column width, which is not knowable here.
+   * Home Assistant measures the rendered card, so nothing has to be predicted.
+   * `_stationRows()` stays for `getCardSize()`, which masonry needs and which has no auto.
    * @returns The grid footprint, in grid units.
    */
-  public getGridOptions(): { rows: number; columns: number; min_rows: number; min_columns: number } {
-    // One row for the card's own header and padding, then one per station row.
-    return { rows: this._stationRows() + 1, columns: 12, min_rows: 2, min_columns: 6 };
+  public getGridOptions(): LovelaceGridOptions {
+    return { columns: 'full', min_columns: 6, rows: 'auto', min_rows: 2 };
   }
 
   /**
