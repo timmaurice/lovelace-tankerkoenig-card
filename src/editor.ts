@@ -708,17 +708,14 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       <ha-dialog
         id="customize-dialog"
         .open=${this._isCustomizeDialogOpen}
-        .heading=${localize(this.hass, 'component.tankerkoenig-card.editor.customize')}
-        @closed=${(e: CustomEvent) => {
+        .headerTitle=${localize(this.hass, 'component.tankerkoenig-card.editor.customize')}
+        @closed=${(e: Event) => {
+          // Fired after every hide, whatever caused it, and without a detail. Save has already
+          // written the config by the time it arrives, so all that is left is to reset.
           e.stopPropagation();
           this._isCustomizeDialogOpen = false;
-          const target = e.target as HTMLElement & { closingReason?: string };
-          if (e.detail?.action === 'confirm' || target?.closingReason === 'confirm') {
-            this._confirmCustomize();
-          } else {
-            this._customizeInputValue = '';
-            this._customizeNameInputValue = '';
-          }
+          this._customizeInputValue = '';
+          this._customizeNameInputValue = '';
         }}
       >
         <div>
@@ -734,7 +731,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
             @input=${(e: Event) => (this._customizeInputValue = (e.target as HTMLInputElement).value)}
           ></ha-input>
         </div>
-        <div class="dialog-actions">
+        <div class="dialog-actions" slot="footer">
           <button
             class="action-btn"
             @click=${() => {

@@ -163,8 +163,7 @@ ha-textfield {
 }
 
 ha-dialog {
-  --mdc-dialog-min-width: 400px;
-  --mdc-dialog-max-width: 500px;
+  --ha-dialog-width-md: 500px;
 
   ha-input,
   ha-textfield {
@@ -173,12 +172,9 @@ ha-dialog {
   }
 
   .dialog-actions {
-    border-top: 1px solid var(--divider-color);
     display: flex;
     gap: 8px;
     justify-content: flex-end;
-    margin-top: 24px;
-    padding-top: 16px;
 
     .action-btn {
       background-color: transparent;

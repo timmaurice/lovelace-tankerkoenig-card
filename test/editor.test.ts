@@ -354,6 +354,46 @@ describe('TankerkoenigCardEditor', () => {
       expect(saved.stations?.[1]).toBe('device-2');
       fireEventSpy.mockRestore();
     });
+
+    // Since 2026.3 ha-dialog is the Web Awesome dialog. It reads its title from `headerTitle`
+    // and has a single `footer` slot; a `heading` property or an action row left in the body
+    // is silently ignored or scrolls away with the content.
+    it('should hand its title to ha-dialog through headerTitle', async () => {
+      element['_showCustomizeDialog']('device-2', 1);
+      await element.updateComplete;
+
+      const dialog = element.shadowRoot?.querySelector('ha-dialog') as
+        (HTMLElement & { headerTitle?: string; open?: boolean; heading?: string }) | null;
+      expect(dialog?.open).toBe(true);
+      expect(dialog?.headerTitle).toBe('Customize');
+      expect(dialog?.heading).toBeUndefined();
+    });
+
+    it('should put Cancel and Save into the footer slot of ha-dialog', async () => {
+      element['_showCustomizeDialog']('device-2', 1);
+      await element.updateComplete;
+
+      const dialog = element.shadowRoot?.querySelector('ha-dialog');
+      const footer = Array.from(dialog?.children ?? []).filter((child) => child.getAttribute('slot') === 'footer');
+      expect(footer).toHaveLength(1);
+      const labels = Array.from(footer[0].querySelectorAll('button')).map((button) => button.textContent?.trim());
+      expect(labels).toEqual(['Cancel', 'Save']);
+    });
+
+    it('should reset both fields when the dialog reports it has closed', async () => {
+      const fireEventSpy = vi.spyOn(utils, 'fireEvent');
+      element['_showCustomizeDialog']('device-2', 1);
+      element['_customizeNameInputValue'] = 'Dismissed';
+      await element.updateComplete;
+
+      element.shadowRoot?.querySelector('ha-dialog')?.dispatchEvent(new Event('closed'));
+      await element.updateComplete;
+
+      expect(element['_isCustomizeDialogOpen']).toBe(false);
+      expect(element['_customizeNameInputValue']).toBe('');
+      expect(fireEventSpy).not.toHaveBeenCalled();
+      fireEventSpy.mockRestore();
+    });
   });
 
   describe('Drag and Drop Sorting', () => {
