@@ -603,6 +603,24 @@ export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Dat
   }
 }
 
+const WHOLE_WEEK = [0, 1, 2, 3, 4, 5, 6];
+const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
+
+/**
+ * Whether the rules keep a station open on every day of the week, all day.
+ *
+ * Home Assistant reports a station that never closes as the single opening time
+ * `Mo-So 00:00-24:00` rather than through a flag of its own, so 24/7 has to be read off the
+ * hours. A day counts as covered by a range from midnight to 23:59 or later, or by the
+ * `00:00-00:00` that some stations use for the same thing.
+ */
+export function isOpenAroundTheClock(rules: OpeningRule[]): boolean {
+  const coversWholeDay = (range: TimeRange): boolean =>
+    range.startMin === 0 && (range.endMin >= LAST_MINUTE_OF_DAY || range.endMin === 0);
+
+  return WHOLE_WEEK.every((day) => rules.some((rule) => rule.days.includes(day) && rule.ranges.some(coversWholeDay)));
+}
+
 export interface RawOpeningTime {
   start: string;
   end: string;

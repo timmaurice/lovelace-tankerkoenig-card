@@ -114,7 +114,8 @@ export async function seedStation(station: StationEntities, data: StationData): 
   await setState(station.status, data.open ? 'on' : 'off', {
     friendly_name: `${data.name} Status`,
     device_class: 'door',
-    whole_day: true,
+    // How the integration reports a station that never closes; it has no whole_day flag.
+    opening_times: [{ text: 'Mo-So', start: '00:00:00', end: '24:00:00' }],
   });
 }
 

@@ -31,8 +31,8 @@ test.beforeAll(async () => {
       prices: { e5: '1.889', e10: '1.829', diesel: '1.759' },
       open: true,
     });
-    // seedStation marks a station as open around the clock, which renders the 24/7 badge and
-    // no opening hours at all. These stations keep hours, so their badge opens the callout.
+    // seedStation marks a station as open around the clock, which renders the 24/7 badge.
+    // These stations keep ordinary hours instead, so their badge shows when they close.
     await setState(station.status, 'on', {
       friendly_name: `${NAMES[index]} Status`,
       device_class: 'door',

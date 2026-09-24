@@ -899,6 +899,33 @@ describe('TankerkoenigCard', () => {
       expect(badge?.textContent).toBe('24/7');
     });
 
+    // Core publishes a station that never closes as a single Mo-So 00:00-24:00 opening time and
+    // has no whole_day attribute. Reading 24/7 only off whole_day left such a station with an
+    // ordinary "Closes at 24:00" badge.
+    it('should render the 24/7 badge from an around-the-clock opening time without whole_day', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_times = [
+        { text: 'Mo-So', start: '00:00:00', end: '24:00:00' },
+      ];
+      await setupCard({}, station);
+
+      const badge = element.shadowRoot?.querySelector('.badge-247');
+      expect(badge?.textContent).toBe('24/7');
+      expect(element.shadowRoot?.querySelector('.badge-open')).toBeNull();
+    });
+
+    it('should not call a station 24/7 that is open around the clock on weekdays only', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
+      station.states['binary_sensor.aral_status'].attributes.opening_times = [
+        { text: 'Mo-Fr', start: '00:00:00', end: '24:00:00' },
+        { text: 'Samstag, Sonntag', start: '08:00:00', end: '20:00:00' },
+      ];
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge-247')).toBeNull();
+      expect(element.shadowRoot?.querySelector('.badge')).not.toBeNull();
+    });
+
     it('should render opening times from opening_times array attribute on status entity when clicked', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
       station.states[`binary_sensor.aral_status`].attributes.opening_times = [
@@ -1374,6 +1401,40 @@ describe('utils', () => {
       expect(res.dayLabel).toBe('tomorrow');
       expect(res.timeMinutes).toBe(8 * 60);
     });
+  });
+});
+
+describe('isOpenAroundTheClock', () => {
+  const raw = (...times: [string, string, string][]) =>
+    utils.parseRawOpeningTimes(times.map(([text, start, end]) => ({ text, start, end })));
+
+  it('should accept the single opening time Home Assistant publishes for a 24/7 station', () => {
+    expect(utils.isOpenAroundTheClock(raw(['Mo-So', '00:00:00', '24:00:00']))).toBe(true);
+  });
+
+  it('should accept 23:59 and 00:00 as the end of a day that never closes', () => {
+    expect(utils.isOpenAroundTheClock(raw(['Mo-So', '00:00:00', '23:59:00']))).toBe(true);
+    expect(utils.isOpenAroundTheClock(raw(['täglich', '00:00:00', '00:00:00']))).toBe(true);
+  });
+
+  it('should accept a week that is covered by several entries together', () => {
+    expect(
+      utils.isOpenAroundTheClock(raw(['Mo-Fr', '00:00:00', '24:00:00'], ['Samstag, Sonntag', '00:00:00', '24:00:00'])),
+    ).toBe(true);
+  });
+
+  it('should reject a week with a day left out or a day that closes', () => {
+    expect(utils.isOpenAroundTheClock(raw(['Mo-Sa', '00:00:00', '24:00:00']))).toBe(false);
+    expect(utils.isOpenAroundTheClock(raw(['Mo-So', '06:00:00', '24:00:00']))).toBe(false);
+    expect(utils.isOpenAroundTheClock(raw(['Feiertag', '00:00:00', '24:00:00']))).toBe(false);
+  });
+
+  it('should reject a station without opening times', () => {
+    expect(utils.isOpenAroundTheClock([])).toBe(false);
+  });
+
+  it('should read the same off an opening_hours string', () => {
+    expect(utils.isOpenAroundTheClock(utils.parseOpeningHours('Mo-So 00:00-24:00'))).toBe(true);
   });
 });
 

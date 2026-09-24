@@ -23,6 +23,7 @@ import {
   resolveLogoUrl,
   parseOpeningHours,
   getOpeningStatus,
+  isOpenAroundTheClock,
   formatRawOpeningTimes,
   parseRawOpeningTimes,
   OpeningRule,
@@ -546,11 +547,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               statusEntity?.attributes?.opening_times ||
               statusEntity?.attributes?.opening_hours_status;
 
-            const is247 =
-              twentyFourSevenAttr === true ||
-              wholeDayAttr === true ||
-              (typeof openingHoursAttr === 'string' && /24\/7|24h/i.test(openingHoursAttr));
-
             let openingHours = '';
             let rules: OpeningRule[] = [];
 
@@ -561,6 +557,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               openingHours = cleanOpeningHoursDisplay(openingHoursAttr);
               rules = parseOpeningHours(openingHoursAttr);
             }
+
+            // Home Assistant publishes a station that never closes as a Mo-So 00:00-24:00
+            // opening time. `whole_day` is still honoured for integrations that sent it.
+            const is247 =
+              twentyFourSevenAttr === true ||
+              wholeDayAttr === true ||
+              (typeof openingHoursAttr === 'string' && /24\/7|24h/i.test(openingHoursAttr)) ||
+              isOpenAroundTheClock(rules);
 
             let badgeHtml: TemplateResult | string = '';
             const show247Badge = this._config.show_24_7_badge !== false;
