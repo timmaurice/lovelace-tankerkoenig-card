@@ -109,6 +109,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
    * it suggests, so neither may be assumed. The result carries only what actually differs
    * from the card's own defaults: baking `show_street: true` and friends into every new card
    * wrote three lines of YAML that mean exactly nothing.
+   *
+   * The suggested entities rank first, but only those of the `tankerkoenig` integration: the
+   * picker passes its own list, whatever the platform, and the first entity with a device
+   * there (the Backup integration's, say) is no station this card can show.
    * @param hass The Home Assistant object, absent on an early call.
    * @param entities Entity ids Home Assistant suggests for the card.
    * @returns A minimal starting configuration.
@@ -118,7 +122,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       .filter(([entityId, entry]) => entry.platform === 'tankerkoenig' && entityId.startsWith('sensor.'))
       .map(([, entry]) => entry.device_id);
 
-    const fromSuggestions = (entities ?? []).map((entityId) => hass?.entities?.[entityId]?.device_id);
+    const fromSuggestions = (entities ?? [])
+      .map((entityId) => hass?.entities?.[entityId])
+      .filter((entry) => entry?.platform === 'tankerkoenig')
+      .map((entry) => entry?.device_id);
 
     const device = [...fromSuggestions, ...fromRegistry].find((deviceId): deviceId is string => Boolean(deviceId));
 

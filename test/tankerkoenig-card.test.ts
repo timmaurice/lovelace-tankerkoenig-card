@@ -217,6 +217,55 @@ describe('TankerkoenigCard', () => {
       expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
     });
 
+    it('should not pick the device of a suggested entity from another integration', () => {
+      // The picker passes its own entity list, whatever the platform. The first one with a
+      // device used to win, so the preview read "Station not found" for the Backup device.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      hass.entities = {
+        'sensor.backup_backup_manager_state': {
+          entity_id: 'sensor.backup_backup_manager_state',
+          platform: 'backup',
+          device_id: 'device-backup',
+        },
+        ...Object.fromEntries(
+          Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform: 'tankerkoenig' }]),
+        ),
+      };
+
+      expect(TankerkoenigCardClass.getStubConfig(hass, ['sensor.backup_backup_manager_state']).stations).toEqual([
+        station.device_id,
+      ]);
+      expect(TankerkoenigCardClass.getStubConfig(hass, ['sensor.backup_backup_manager_state']).stations).toEqual(
+        TankerkoenigCardClass.getStubConfig(hass, []).stations,
+      );
+    });
+
+    it('should pick the station of a suggested tankerkoenig entity first', () => {
+      const aral = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      const shell = createMockStation('shell', 'Shell', 'Shell', { e5: '1.799' });
+      hass.entities = {
+        'sensor.backup_backup_manager_state': {
+          entity_id: 'sensor.backup_backup_manager_state',
+          platform: 'backup',
+          device_id: 'device-backup',
+        },
+        ...Object.fromEntries(
+          Object.entries({ ...aral.entities, ...shell.entities }).map(([id, entry]) => [
+            id,
+            { ...entry, platform: 'tankerkoenig' },
+          ]),
+        ),
+      };
+
+      // Without a suggestion the registry order decides, so aral comes first ...
+      expect(TankerkoenigCardClass.getStubConfig(hass, []).stations).toEqual([aral.device_id]);
+      // ... and a suggested shell entity beats it, even behind an entity of another integration.
+      expect(
+        TankerkoenigCardClass.getStubConfig(hass, ['sensor.backup_backup_manager_state', 'binary_sensor.shell_status'])
+          .stations,
+      ).toEqual([shell.device_id]);
+    });
+
     describe('getEntitySuggestion', () => {
       const suggest = (entityId: string) =>
         window.customCards?.find((card) => card.type === 'tankerkoenig-card')?.getEntitySuggestion?.(hass, entityId);
