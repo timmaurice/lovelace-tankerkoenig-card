@@ -16,6 +16,7 @@ import {
   fireEvent,
   formatDate,
   formatPrice,
+  pricePlaceholder,
   formatTimeOfDay,
   entityProblemMessage,
   getLogoUrl,
@@ -804,9 +805,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                     const currency = stateObj.attributes.unit_of_measurement || '';
                     // Splitting the raw state on '.' threw whenever the state carried no
                     // decimal point at all, taking the whole card down with it.
-                    const price = isUnavailable ? null : formatPrice(stateObj.state, this.hass);
-                    const mainPrice = price ? price.main : '-.--';
-                    const superPrice = price ? price.superscript : '-';
+                    const { main: mainPrice, superscript: superPrice } =
+                      (isUnavailable ? null : formatPrice(stateObj.state, this.hass)) ?? pricePlaceholder(this.hass);
 
                     const containerStyle = {
                       '--local-price-bg-color': (this._config.price_bg_color as string) || 'var(--divider-color)',
