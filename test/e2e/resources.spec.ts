@@ -25,8 +25,15 @@ test.afterAll(async () => {
 
 test.describe('Lovelace resource registration', () => {
   test('serves the bundle as a module resource', async () => {
-    const ours = (await resources()).filter((resource) => resource.url.startsWith(CARD_PREFIX));
-    expect(ours.map((resource) => resource.url)).toContain(BUNDLE);
+    // Matched by path, not by the whole URL: a query string such as `?v=2` is a
+    // cache-bust stamp users legitimately put on the resource, and it does not
+    // change which file is served. The duplicate registered above is left out,
+    // so the assertion is about the setup's own registration.
+    const ours = (await resources()).filter(
+      (resource) => resource.id !== duplicateId && new URL(resource.url, 'http://ha.invalid').pathname === BUNDLE,
+    );
+    expect(ours).not.toHaveLength(0);
+    for (const resource of ours) expect(resource.type, resource.url).toBe('module');
   });
 
   test('defines card and editor without a clash when the bundle is loaded twice', async ({ page, consoleErrors }) => {

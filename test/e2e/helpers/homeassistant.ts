@@ -170,6 +170,6 @@ export async function useDashboard(name: string, config: Record<string, unknown>
 }
 
 /** The Lovelace resources Home Assistant has persisted. */
-export async function resources(): Promise<{ id: string; url: string }[]> {
+export async function resources(): Promise<{ id: string; url: string; type: string }[]> {
   return callWebsocket({ type: 'lovelace/resources' });
 }
