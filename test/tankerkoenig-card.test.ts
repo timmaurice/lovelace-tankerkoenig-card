@@ -217,6 +217,70 @@ describe('TankerkoenigCard', () => {
       expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
     });
 
+    describe('getEntitySuggestion', () => {
+      const suggest = (entityId: string) =>
+        window.customCards?.find((card) => card.type === 'tankerkoenig-card')?.getEntitySuggestion?.(hass, entityId);
+
+      const withPlatform = (station: ReturnType<typeof createMockStation>, platform: string) => {
+        hass.entities = Object.fromEntries(
+          Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform }]),
+        );
+        hass.states = station.states;
+        hass.devices = station.devices;
+      };
+
+      it('should suggest the station a tankerkoenig entity belongs to', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        expect(suggest('sensor.aral_e5')?.config).toEqual({
+          type: 'custom:tankerkoenig-card',
+          title: 'Tankerkönig',
+          stations: [station.device_id],
+        });
+        // The status entity belongs to the same station, so it suggests the same card.
+        expect(suggest('binary_sensor.aral_status')?.config.stations).toEqual([station.device_id]);
+      });
+
+      it('should suggest exactly the card the picker would otherwise create', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        const { type, ...rest } = suggest('sensor.aral_e5')?.config ?? {};
+        expect(type).toBe('custom:tankerkoenig-card');
+        expect(rest).toEqual(TankerkoenigCardClass.getStubConfig(hass, ['sensor.aral_e5']));
+      });
+
+      it('should suggest a config the card accepts', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        const config = suggest('sensor.aral_e5')?.config as TankerkoenigCardConfig;
+        expect(() => element.setConfig(config)).not.toThrow();
+      });
+
+      it('should not suggest the card for another integration', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'demo');
+
+        expect(suggest('sensor.aral_e5')).toBeNull();
+      });
+
+      it('should not suggest the card for a tankerkoenig entity without a station', () => {
+        // The card is configured by device; an entity without one gives it nothing to show,
+        // and getStubConfig would quietly fall back to some other station.
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+        hass.entities['sensor.orphan'] = { entity_id: 'sensor.orphan', platform: 'tankerkoenig' };
+
+        expect(suggest('sensor.orphan')).toBeNull();
+      });
+
+      it('should not suggest the card for an entity missing from the registry', () => {
+        expect(suggest('sensor.unknown')).toBeNull();
+      });
+    });
+
     it('should report a card size that follows the station count', async () => {
       // A constant 3 made a one-station card tower over its content and clipped a long one
       // in a masonry column.

@@ -60,6 +60,7 @@ declare global {
       description: string;
       documentationURL: string;
       preview?: boolean;
+      getEntitySuggestion?: (hass: HomeAssistant, entityId: string) => { config: Record<string, unknown> } | null;
     }[];
     loadCardHelpers(): Promise<LovelaceHelpers>;
   }
@@ -121,6 +122,23 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     const device = [...fromSuggestions, ...fromRegistry].find((deviceId): deviceId is string => Boolean(deviceId));
 
     return { title: 'Tankerkönig', stations: device ? [device] : [] };
+  }
+
+  /**
+   * The card the picker suggests for an entity (Home Assistant 2026.6+), or null.
+   *
+   * The card shows stations, not entities, so the suggestion is the station the entity belongs
+   * to - and only for an entity of the core `tankerkoenig` integration: a price sensor of any
+   * other integration has nothing this card can render. The config is `getStubConfig`'s for
+   * that entity, so the preview is the card the picker would otherwise create.
+   * @param hass The Home Assistant object.
+   * @param entityId The entity the user is looking at in the picker.
+   * @returns A suggestion for the entity's station, or null when the card has none to offer.
+   */
+  public static getEntitySuggestion(hass: HomeAssistant, entityId: string): { config: Record<string, unknown> } | null {
+    const entry = hass?.entities?.[entityId];
+    if (entry?.platform !== 'tankerkoenig' || !entry.device_id) return null;
+    return { config: { type: `custom:${ELEMENT_NAME}`, ...TankerkoenigCard.getStubConfig(hass, [entityId]) } };
   }
 
   /**
@@ -894,6 +912,8 @@ if (typeof window !== 'undefined') {
       description: 'A Lovelace card to display German fuel prices from Tankerkönig.',
       documentationURL: 'https://github.com/timmaurice/lovelace-tankerkoenig-card',
       preview: true,
+      getEntitySuggestion: (hass: HomeAssistant, entityId: string) =>
+        TankerkoenigCard.getEntitySuggestion(hass, entityId),
     });
   }
 }
