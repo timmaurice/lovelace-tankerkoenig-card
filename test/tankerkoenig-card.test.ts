@@ -384,6 +384,52 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Station name', () => {
+    // A station known neither by its device nor by a station_name attribute is named after
+    // one of its entities - the only place the card fell back to friendly_name.
+    const namelessStation = () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.devices = {};
+      for (const stateObj of Object.values(station.states)) delete stateObj.attributes.station_name;
+      return station;
+    };
+
+    it("should compose the name with Home Assistant's formatter", async () => {
+      const formatEntityName = vi.fn(() => 'Formatted name');
+      hass.formatEntityName = formatEntityName;
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('Formatted name');
+      expect(formatEntityName).toHaveBeenCalledWith(expect.objectContaining({ entity_id: 'sensor.aral_e5' }), [
+        { type: 'device' },
+        { type: 'entity' },
+      ]);
+    });
+
+    it('should fall back to friendly_name without the formatter', async () => {
+      // Home Assistant before 2026.4 has no formatEntityName.
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL E5');
+    });
+
+    it('should fall back to friendly_name when the formatter returns nothing', async () => {
+      hass.formatEntityName = () => '';
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL E5');
+    });
+
+    it('should not ask the formatter while the device names the station', async () => {
+      const formatEntityName = vi.fn(() => 'Formatted name');
+      hass.formatEntityName = formatEntityName;
+      await setupCard({}, createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' }));
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL Tankstelle');
+      expect(formatEntityName).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Display Options', () => {
     it('should show full address by default', async () => {
       const station = createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' });

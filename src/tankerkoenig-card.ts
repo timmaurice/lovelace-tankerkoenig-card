@@ -549,11 +549,16 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const attributes = stateObj.attributes;
             const device = this.hass.devices[stationId];
 
+            // The last resort is the entity's own name, composed by Home Assistant's formatter
+            // like its own cards do. `friendly_name` is what the server pre-joined, which
+            // ignores the naming the frontend applies; it stays as the fallback for a hass
+            // without the formatter (before 2026.4) and for a formatter that returns nothing.
             const stationName =
               station.name ||
               device?.name_by_user ||
               device?.name ||
               attributes.station_name ||
+              this.hass.formatEntityName?.(stateObj, [{ type: 'device' }, { type: 'entity' }]) ||
               attributes.friendly_name;
 
             const statusEntity = status.stateObj ?? null;
