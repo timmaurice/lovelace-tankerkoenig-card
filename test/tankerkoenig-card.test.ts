@@ -217,6 +217,70 @@ describe('TankerkoenigCard', () => {
       expect(TankerkoenigCardClass.getStubConfig(hass).stations).toEqual([]);
     });
 
+    describe('getEntitySuggestion', () => {
+      const suggest = (entityId: string) =>
+        window.customCards?.find((card) => card.type === 'tankerkoenig-card')?.getEntitySuggestion?.(hass, entityId);
+
+      const withPlatform = (station: ReturnType<typeof createMockStation>, platform: string) => {
+        hass.entities = Object.fromEntries(
+          Object.entries(station.entities).map(([id, entry]) => [id, { ...entry, platform }]),
+        );
+        hass.states = station.states;
+        hass.devices = station.devices;
+      };
+
+      it('should suggest the station a tankerkoenig entity belongs to', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        expect(suggest('sensor.aral_e5')?.config).toEqual({
+          type: 'custom:tankerkoenig-card',
+          title: 'Tankerkönig',
+          stations: [station.device_id],
+        });
+        // The status entity belongs to the same station, so it suggests the same card.
+        expect(suggest('binary_sensor.aral_status')?.config.stations).toEqual([station.device_id]);
+      });
+
+      it('should suggest exactly the card the picker would otherwise create', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        const { type, ...rest } = suggest('sensor.aral_e5')?.config ?? {};
+        expect(type).toBe('custom:tankerkoenig-card');
+        expect(rest).toEqual(TankerkoenigCardClass.getStubConfig(hass, ['sensor.aral_e5']));
+      });
+
+      it('should suggest a config the card accepts', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+
+        const config = suggest('sensor.aral_e5')?.config as TankerkoenigCardConfig;
+        expect(() => element.setConfig(config)).not.toThrow();
+      });
+
+      it('should not suggest the card for another integration', () => {
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'demo');
+
+        expect(suggest('sensor.aral_e5')).toBeNull();
+      });
+
+      it('should not suggest the card for a tankerkoenig entity without a station', () => {
+        // The card is configured by device; an entity without one gives it nothing to show,
+        // and getStubConfig would quietly fall back to some other station.
+        const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+        withPlatform(station, 'tankerkoenig');
+        hass.entities['sensor.orphan'] = { entity_id: 'sensor.orphan', platform: 'tankerkoenig' };
+
+        expect(suggest('sensor.orphan')).toBeNull();
+      });
+
+      it('should not suggest the card for an entity missing from the registry', () => {
+        expect(suggest('sensor.unknown')).toBeNull();
+      });
+    });
+
     it('should report a card size that follows the station count', async () => {
       // A constant 3 made a one-station card tower over its content and clipped a long one
       // in a masonry column.
@@ -317,6 +381,52 @@ describe('TankerkoenigCard', () => {
       expect(priceValues?.[0].textContent).toContain('1.69');
       expect(fuelTypes?.[1].textContent).toBe('E10');
       expect(priceValues?.[1].textContent).toContain('1.79');
+    });
+  });
+
+  describe('Station name', () => {
+    // A station known neither by its device nor by a station_name attribute is named after
+    // one of its entities - the only place the card fell back to friendly_name.
+    const namelessStation = () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.devices = {};
+      for (const stateObj of Object.values(station.states)) delete stateObj.attributes.station_name;
+      return station;
+    };
+
+    it("should compose the name with Home Assistant's formatter", async () => {
+      const formatEntityName = vi.fn(() => 'Formatted name');
+      hass.formatEntityName = formatEntityName;
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('Formatted name');
+      expect(formatEntityName).toHaveBeenCalledWith(expect.objectContaining({ entity_id: 'sensor.aral_e5' }), [
+        { type: 'device' },
+        { type: 'entity' },
+      ]);
+    });
+
+    it('should fall back to friendly_name without the formatter', async () => {
+      // Home Assistant before 2026.4 has no formatEntityName.
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL E5');
+    });
+
+    it('should fall back to friendly_name when the formatter returns nothing', async () => {
+      hass.formatEntityName = () => '';
+      await setupCard({}, namelessStation());
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL E5');
+    });
+
+    it('should not ask the formatter while the device names the station', async () => {
+      const formatEntityName = vi.fn(() => 'Formatted name');
+      hass.formatEntityName = formatEntityName;
+      await setupCard({}, createMockStation('aral', 'ARAL Tankstelle', 'ARAL', { e5: '1.899' }));
+
+      expect(element.shadowRoot?.querySelector('.station-name')?.textContent).toBe('ARAL Tankstelle');
+      expect(formatEntityName).not.toHaveBeenCalled();
     });
   });
 
@@ -1453,6 +1563,14 @@ describe('Duplicate resource registration', () => {
 
     const entries = (window.customCards ?? []).filter((card) => card.type === 'tankerkoenig-card');
     expect(entries).toHaveLength(1);
+  });
+
+  it('asks the card picker for a preview', async () => {
+    // Without `preview: true` the picker shows the card as a bare name and description.
+    await import('../src/tankerkoenig-card');
+
+    const entry = (window.customCards ?? []).find((card) => card.type === 'tankerkoenig-card');
+    expect(entry?.preview).toBe(true);
   });
 });
 

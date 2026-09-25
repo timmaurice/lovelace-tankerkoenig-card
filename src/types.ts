@@ -24,6 +24,9 @@ export interface FrontendLocaleData {
   // You can expand this with more properties if needed
 }
 
+// One part of an entity's display name, as Home Assistant composes it from the registries.
+export type EntityNameItem = { type: 'entity' | 'device' | 'area' | 'floor' } | { type: 'text'; text: string };
+
 // A basic representation of the Home Assistant object
 export interface HomeAssistant {
   states: { [entity_id: string]: HassEntity };
@@ -33,6 +36,15 @@ export interface HomeAssistant {
   language: string;
   locale: FrontendLocaleData;
   callWS: <T>(message: { type: string; [key: string]: unknown }) => Promise<T>;
+  /**
+   * Composes an entity's name the way Home Assistant's own cards do (since 2026.4). Optional
+   * because a hass object from before that release, or a test double, does not carry it.
+   */
+  formatEntityName?: (
+    stateObj: HassEntity,
+    name?: string | EntityNameItem | EntityNameItem[],
+    options?: { separator?: string },
+  ) => string;
   themes?: {
     darkMode?: boolean;
     [key: string]: unknown;
