@@ -63,11 +63,18 @@ function timeLocale(hass: HomeAssistant): string | undefined {
  * @returns The formatted number.
  */
 export function formatNumber(value: number, hass: HomeAssistant, options: Intl.NumberFormatOptions = {}): string {
-  // 'none' is HA's explicit opt-out of formatting, so it must not go through Intl at all.
-  if (hass?.locale?.number_format === 'none') {
-    return options.minimumFractionDigits !== undefined ? value.toFixed(options.minimumFractionDigits) : String(value);
+  // 'none' is HA's opt-out of localised formatting. HA still formats the number - as en-US
+  // without grouping, keeping the caller's decimals - rather than printing it raw. The
+  // toFixed this replaces honoured only minimumFractionDigits, so a maximum was ignored and a
+  // call without a minimum printed whatever String() made of the float.
+  const plain = (): string => new Intl.NumberFormat('en-US', { ...options, useGrouping: false }).format(value);
+  if (hass?.locale?.number_format === 'none') return plain();
+  try {
+    return new Intl.NumberFormat(numberLocale(hass), options).format(value);
+  } catch {
+    // A language tag Intl rejects throws a RangeError, which would take the render down.
+    return plain();
   }
-  return new Intl.NumberFormat(numberLocale(hass), options).format(value);
 }
 
 /** The decimal separator the user's number format produces, read back from the formatter itself. */
@@ -109,6 +116,17 @@ export function formatPrice(state: string, hass: HomeAssistant): FormattedPrice 
     main: `${text.slice(0, index)}${separator}${decimals.slice(0, 2)}`,
     superscript: decimals.slice(2, 3),
   };
+}
+
+/**
+ * What the card shows in place of a price it cannot read, in the same two parts as
+ * {@link formatPrice}. The dashes stand in for digits, but the separator between them is
+ * still the user's: a German user saw `-.--` next to prices written `1,89`.
+ * @param hass The Home Assistant object, used for the locale.
+ * @returns The placeholder, e.g. `-.--` with a `-` superscript, or `-,--` for `de`.
+ */
+export function pricePlaceholder(hass: HomeAssistant): FormattedPrice {
+  return { main: `-${decimalSeparator(hass)}--`, superscript: '-' };
 }
 
 /**

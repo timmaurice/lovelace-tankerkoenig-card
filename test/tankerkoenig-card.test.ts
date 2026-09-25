@@ -653,6 +653,17 @@ describe('TankerkoenigCard', () => {
       expect(priceEl?.textContent).toContain('1,89');
       expect(priceEl?.querySelector('sup')?.textContent).toBe('9');
     });
+
+    it('should render the placeholder of an unavailable price with the locale separator', async () => {
+      hass.language = 'de';
+      hass.locale = { language: 'de', number_format: 'decimal_comma', time_format: '24' };
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: 'unavailable' });
+      await setupCard({ fuel_types: ['e5'] }, station);
+
+      const priceEl = element.shadowRoot?.querySelector('.price');
+      expect(priceEl?.textContent).toContain('-,--');
+      expect(priceEl?.querySelector('sup')?.textContent).toBe('-');
+    });
   });
 
   describe('Unresolvable entities', () => {
@@ -1158,6 +1169,67 @@ describe('utils', () => {
       it('should return null for a state that is not a number', () => {
         expect(utils.formatPrice('unavailable', withLocale('en', 'comma_decimal', '24'))).toBeNull();
       });
+
+      it('should follow the language when the number format is language', () => {
+        expect(utils.formatPrice('1.799', withLocale('en', 'language', '24'))).toEqual({
+          main: '1.79',
+          superscript: '9',
+        });
+        expect(utils.formatPrice('1.799', withLocale('de', 'language', '24'))).toEqual({
+          main: '1,79',
+          superscript: '9',
+        });
+      });
+
+      it('should let an explicit number format override the language', () => {
+        // The number format exists so it can differ from the UI language, in both directions.
+        expect(utils.formatPrice('1.799', withLocale('de', 'comma_decimal', '24'))).toEqual({
+          main: '1.79',
+          superscript: '9',
+        });
+        expect(utils.formatPrice('1.799', withLocale('en', 'decimal_comma', '24'))).toEqual({
+          main: '1,79',
+          superscript: '9',
+        });
+        expect(utils.formatPrice('1.799', withLocale('en', 'space_comma', '24'))).toEqual({
+          main: '1,79',
+          superscript: '9',
+        });
+        expect(utils.formatPrice('1.799', withLocale('de', 'quote_decimal', '24'))).toEqual({
+          main: '1.79',
+          superscript: '9',
+        });
+      });
+
+      it('should print a plain decimal point when the profile opts out', () => {
+        expect(utils.formatPrice('1.799', withLocale('de', 'none', '24'))).toEqual({ main: '1.79', superscript: '9' });
+      });
+
+      it('should keep the grouping of the locale and still take the superscript from the decimals', () => {
+        expect(utils.formatPrice('1234.567', withLocale('de', 'decimal_comma', '24'))).toEqual({
+          main: '1.234,56',
+          superscript: '7',
+        });
+        expect(utils.formatPrice('1234.567', withLocale('en', 'comma_decimal', '24'))).toEqual({
+          main: '1,234.56',
+          superscript: '7',
+        });
+        expect(utils.formatPrice('1234.567', withLocale('de', 'none', '24'))).toEqual({
+          main: '1234.56',
+          superscript: '7',
+        });
+      });
+    });
+
+    describe('pricePlaceholder', () => {
+      it('should use the decimal separator of the number format', () => {
+        const placeholder = utils.pricePlaceholder;
+        expect(placeholder(withLocale('en', 'language', '24'))).toEqual({ main: '-.--', superscript: '-' });
+        expect(placeholder(withLocale('de', 'language', '24'))).toEqual({ main: '-,--', superscript: '-' });
+        expect(placeholder(withLocale('de', 'comma_decimal', '24'))).toEqual({ main: '-.--', superscript: '-' });
+        expect(placeholder(withLocale('en', 'decimal_comma', '24'))).toEqual({ main: '-,--', superscript: '-' });
+        expect(placeholder(withLocale('de', 'none', '24'))).toEqual({ main: '-.--', superscript: '-' });
+      });
     });
 
     describe('formatTimeOfDay', () => {
@@ -1185,8 +1257,27 @@ describe('utils', () => {
         expect(utils.formatNumber(1234.5, withLocale('en', 'comma_decimal', '24'))).toBe('1,234.5');
       });
 
+      it('should follow the language when the number format is language', () => {
+        expect(utils.formatNumber(1234.5, withLocale('de', 'language', '24'))).toBe('1.234,5');
+        expect(utils.formatNumber(1234.5, withLocale('en', 'language', '24'))).toBe('1,234.5');
+      });
+
       it('should not format at all when the profile opts out', () => {
         expect(utils.formatNumber(1234.5, withLocale('de', 'none', '24'))).toBe('1234.5');
+      });
+
+      it('should still honour the requested decimals when the profile opts out', () => {
+        // The opt-out used to go through toFixed(minimumFractionDigits), which ignored a
+        // maximum and, without a minimum, printed the raw float.
+        expect(utils.formatNumber(1.23456, withLocale('de', 'none', '24'), { maximumFractionDigits: 2 })).toBe('1.23');
+        expect(utils.formatNumber(0.1 + 0.2, withLocale('de', 'none', '24'), { maximumFractionDigits: 3 })).toBe('0.3');
+        expect(
+          utils.formatNumber(2, withLocale('de', 'none', '24'), { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+        ).toBe('2.000');
+      });
+
+      it('should fall back to a plain format instead of throwing for a language tag Intl rejects', () => {
+        expect(utils.formatNumber(1234.5, withLocale('not a tag', 'language', '24'))).toBe('1234.5');
       });
     });
   });
