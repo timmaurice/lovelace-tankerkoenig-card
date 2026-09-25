@@ -1454,6 +1454,14 @@ describe('Duplicate resource registration', () => {
     const entries = (window.customCards ?? []).filter((card) => card.type === 'tankerkoenig-card');
     expect(entries).toHaveLength(1);
   });
+
+  it('asks the card picker for a preview', async () => {
+    // Without `preview: true` the picker shows the card as a bare name and description.
+    await import('../src/tankerkoenig-card');
+
+    const entry = (window.customCards ?? []).find((card) => card.type === 'tankerkoenig-card');
+    expect(entry?.preview).toBe(true);
+  });
 });
 
 describe('Translations', () => {

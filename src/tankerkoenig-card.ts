@@ -893,6 +893,7 @@ if (typeof window !== 'undefined') {
       name: 'Tankerkönig Card',
       description: 'A Lovelace card to display German fuel prices from Tankerkönig.',
       documentationURL: 'https://github.com/timmaurice/lovelace-tankerkoenig-card',
+      preview: true,
     });
   }
 }
