@@ -1069,13 +1069,13 @@ describe('TankerkoenigCard', () => {
       expect(badge?.textContent).toBe('24/7');
     });
 
-    // Core publishes a station that never closes as a single Mo-So 00:00-24:00 opening time and
-    // has no whole_day attribute. Reading 24/7 only off whole_day left such a station with an
-    // ordinary "Closes at 24:00" badge.
+    // Core publishes a station that never closes as a single Mo-So 00:00-23:59:59 opening time
+    // and has no whole_day attribute. Reading 24/7 only off whole_day left such a station with an
+    // ordinary "Closes at" badge.
     it('should render the 24/7 badge from an around-the-clock opening time without whole_day', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
       station.states['binary_sensor.aral_status'].attributes.opening_times = [
-        { text: 'Mo-So', start: '00:00:00', end: '24:00:00' },
+        { days: 'Mo-So', start_time: '00:00:00', end_time: '23:59:59' },
       ];
       await setupCard({}, station);
 
@@ -1087,8 +1087,8 @@ describe('TankerkoenigCard', () => {
     it('should not call a station 24/7 that is open around the clock on weekdays only', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' }, 'on');
       station.states['binary_sensor.aral_status'].attributes.opening_times = [
-        { text: 'Mo-Fr', start: '00:00:00', end: '24:00:00' },
-        { text: 'Samstag, Sonntag', start: '08:00:00', end: '20:00:00' },
+        { days: 'Mo-Fr', start_time: '00:00:00', end_time: '23:59:59' },
+        { days: 'Samstag, Sonntag', start_time: '08:00:00', end_time: '20:00:00' },
       ];
       await setupCard({}, station);
 
@@ -1099,8 +1099,8 @@ describe('TankerkoenigCard', () => {
     it('should render opening times from opening_times array attribute on status entity when clicked', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
       station.states[`binary_sensor.aral_status`].attributes.opening_times = [
-        { start: '08:30:00', end: '19:00:00', text: 'Mo-Fr' },
-        { start: '08:30:00', end: '18:00:00', text: 'Samstag' },
+        { days: 'Mo-Fr', start_time: '08:30:00', end_time: '19:00:00' },
+        { days: 'Samstag', start_time: '08:30:00', end_time: '18:00:00' },
       ];
       await setupCard({}, station);
 
@@ -1656,10 +1656,10 @@ describe('utils', () => {
 
 describe('isOpenAroundTheClock', () => {
   const raw = (...times: [string, string, string][]) =>
-    utils.parseRawOpeningTimes(times.map(([text, start, end]) => ({ text, start, end })));
+    utils.parseRawOpeningTimes(times.map(([days, start_time, end_time]) => ({ days, start_time, end_time })));
 
   it('should accept the single opening time Home Assistant publishes for a 24/7 station', () => {
-    expect(utils.isOpenAroundTheClock(raw(['Mo-So', '00:00:00', '24:00:00']))).toBe(true);
+    expect(utils.isOpenAroundTheClock(raw(['Mo-So', '00:00:00', '23:59:59']))).toBe(true);
   });
 
   it('should accept 23:59 and 00:00 as the end of a day that never closes', () => {
@@ -1685,6 +1685,17 @@ describe('isOpenAroundTheClock', () => {
 
   it('should read the same off an opening_hours string', () => {
     expect(utils.isOpenAroundTheClock(utils.parseOpeningHours('Mo-So 00:00-24:00'))).toBe(true);
+  });
+});
+
+describe('Raw opening times', () => {
+  it('should format the opening times Home Assistant publishes', () => {
+    expect(
+      utils.formatRawOpeningTimes([
+        { days: 'Mo-Fr', start_time: '06:00:00', end_time: '22:00:00' },
+        { days: 'Sa-So', start_time: '08:00:00', end_time: '20:00:00' },
+      ]),
+    ).toBe('Mo-Fr: 06:00-22:00 • Sa-So: 08:00-20:00');
   });
 });
 
