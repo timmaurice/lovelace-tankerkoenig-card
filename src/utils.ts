@@ -628,7 +628,7 @@ const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
  * Whether the rules keep a station open on every day of the week, all day.
  *
  * Home Assistant reports a station that never closes as the single opening time
- * `Mo-So 00:00-24:00` rather than through a flag of its own, so 24/7 has to be read off the
+ * `Mo-So 00:00-23:59:59` rather than through a flag of its own, so 24/7 has to be read off the
  * hours. A day counts as covered by a range from midnight to 23:59 or later, or by the
  * `00:00-00:00` that some stations use for the same thing.
  */
@@ -640,9 +640,9 @@ export function isOpenAroundTheClock(rules: OpeningRule[]): boolean {
 }
 
 export interface RawOpeningTime {
-  start: string;
-  end: string;
-  text: string;
+  days: string;
+  start_time: string;
+  end_time: string;
 }
 
 export function parseRawOpeningTimes(rawTimes: RawOpeningTime[]): OpeningRule[] {
@@ -650,15 +650,15 @@ export function parseRawOpeningTimes(rawTimes: RawOpeningTime[]): OpeningRule[] 
   if (!Array.isArray(rawTimes)) return rules;
 
   for (const item of rawTimes) {
-    if (!item.start || !item.end) continue;
-    const startParts = item.start.split(':');
-    const endParts = item.end.split(':');
+    if (!item.start_time || !item.end_time) continue;
+    const startParts = item.start_time.split(':');
+    const endParts = item.end_time.split(':');
     if (startParts.length < 2 || endParts.length < 2) continue;
 
     const startMin = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
     const endMin = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
 
-    const days = item.text ? parseDays(item.text) : [0, 1, 2, 3, 4, 5, 6];
+    const days = item.days ? parseDays(item.days) : [0, 1, 2, 3, 4, 5, 6];
 
     rules.push({
       days,
@@ -673,9 +673,9 @@ export function formatRawOpeningTimes(rawTimes: RawOpeningTime[]): string {
   if (!Array.isArray(rawTimes)) return '';
   return rawTimes
     .map((item) => {
-      const start = item.start.split(':').slice(0, 2).join(':');
-      const end = item.end.split(':').slice(0, 2).join(':');
-      const days = item.text || '';
+      const start = item.start_time.split(':').slice(0, 2).join(':');
+      const end = item.end_time.split(':').slice(0, 2).join(':');
+      const days = item.days || '';
       return days ? `${days}: ${start}-${end}` : `${start}-${end}`;
     })
     .join(' • ');

@@ -589,7 +589,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
               rules = parseOpeningHours(openingHoursAttr);
             }
 
-            // Home Assistant publishes a station that never closes as a Mo-So 00:00-24:00
+            // Home Assistant publishes a station that never closes as a Mo-So 00:00-23:59:59
             // opening time. `whole_day` is still honoured for integrations that sent it.
             const is247 =
               twentyFourSevenAttr === true ||

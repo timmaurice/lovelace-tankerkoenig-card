@@ -115,7 +115,7 @@ export async function seedStation(station: StationEntities, data: StationData): 
     friendly_name: `${data.name} Status`,
     device_class: 'door',
     // How the integration reports a station that never closes; it has no whole_day flag.
-    opening_times: [{ text: 'Mo-So', start: '00:00:00', end: '24:00:00' }],
+    opening_times: [{ days: 'Mo-So', start_time: '00:00:00', end_time: '23:59:59' }],
   });
 }
 
