@@ -716,14 +716,14 @@ describe('TankerkoenigCard', () => {
   });
 
   describe('Renamed status entities', () => {
-    const renameStatus = (station: ReturnType<typeof createMockStation>) => {
+    const renameStatus = (station: ReturnType<typeof createMockStation>, deviceClass = 'opening') => {
       const oldId = 'binary_sensor.demo_status';
       const entityId = 'binary_sensor.demo_open';
       station.entities[entityId] = { ...station.entities[oldId], entity_id: entityId };
       station.states[entityId] = {
         ...station.states[oldId],
         entity_id: entityId,
-        attributes: { ...station.states[oldId].attributes, device_class: 'opening' },
+        attributes: { ...station.states[oldId].attributes, device_class: deviceClass },
       };
       delete station.entities[oldId];
       delete station.states[oldId];
@@ -741,6 +741,15 @@ describe('TankerkoenigCard', () => {
       await setupCard({}, station);
 
       expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe(label);
+    });
+
+    // Home Assistant 2026.6 and 2026.7 still gave the sensor the `door` device class.
+    it('should render a renamed sensor with the door device class of older Home Assistant', async () => {
+      const station = createMockStation('demo', 'Demo station', 'Demo', { e5: '1.899' }, 'off');
+      renameStatus(station, 'door');
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Closed');
     });
 
     it('should hide a closed station whose opening sensor was renamed', async () => {

@@ -53,6 +53,11 @@ type LovelaceCardConstructor = new () => LovelaceCard;
 const ELEMENT_NAME = 'tankerkoenig-card';
 const EDITOR_ELEMENT_NAME = `${ELEMENT_NAME}-editor`;
 
+// The device classes Home Assistant gives a station's open/closed sensor: `opening` since
+// 2026.8 (home-assistant/core#176145), `door` before. The card supports 2026.6 and later, so
+// a sensor renamed away from `_status` has to be found by either.
+const STATUS_DEVICE_CLASSES = new Set(['opening', 'door']);
+
 declare global {
   interface Window {
     customCards?: {
@@ -298,7 +303,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         if (fuelType === 'e10') stations[deviceId].e10 = entityId;
         if (fuelType === 'diesel') stations[deviceId].diesel = entityId;
         if (
-          (entityId.startsWith('binary_sensor.') && stateObj.attributes.device_class === 'opening') ||
+          (entityId.startsWith('binary_sensor.') && STATUS_DEVICE_CLASSES.has(stateObj.attributes.device_class)) ||
           entityId.endsWith('_status')
         ) {
           stations[deviceId].status = entityId;
