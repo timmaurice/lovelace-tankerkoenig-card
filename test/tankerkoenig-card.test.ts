@@ -715,6 +715,82 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Renamed status entities', () => {
+    const renameStatus = (station: ReturnType<typeof createMockStation>) => {
+      const oldId = 'binary_sensor.demo_status';
+      const entityId = 'binary_sensor.demo_open';
+      station.entities[entityId] = { ...station.entities[oldId], entity_id: entityId };
+      station.states[entityId] = {
+        ...station.states[oldId],
+        entity_id: entityId,
+        attributes: { ...station.states[oldId].attributes, device_class: 'opening' },
+      };
+      delete station.entities[oldId];
+      delete station.states[oldId];
+      return entityId;
+    };
+
+    it.each([
+      ['on', 'Open'],
+      ['off', 'Closed'],
+      ['unavailable', 'Status unknown'],
+    ])('should render a renamed opening sensor in state %s', async (state, label) => {
+      const station = createMockStation('demo', 'Demo station', 'Demo', { e5: '1.899' });
+      const entityId = renameStatus(station);
+      station.states[entityId].state = state;
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe(label);
+    });
+
+    it('should hide a closed station whose opening sensor was renamed', async () => {
+      const station = createMockStation('demo', 'Demo station', 'Demo', { e5: '1.899' }, 'off');
+      renameStatus(station);
+      await setupCard({ hide_unavailable_stations: true }, station);
+
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(0);
+    });
+
+    it('should ignore other sensor types when resolving the opening status', async () => {
+      const station = createMockStation('demo', 'Demo station', 'Demo', { e5: '1.899' });
+      const entityId = 'binary_sensor.demo_status';
+      station.states[entityId].attributes.device_class = 'opening';
+      for (const [otherId, deviceClass] of [
+        ['binary_sensor.demo_motion', 'motion'],
+        ['sensor.demo_other', 'opening'],
+      ]) {
+        station.entities[otherId] = { entity_id: otherId, device_id: station.device_id };
+        station.states[otherId] = {
+          ...station.states[entityId],
+          entity_id: otherId,
+          state: 'off',
+          attributes: { device_class: deviceClass },
+        };
+      }
+      await setupCard({}, station);
+
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Open');
+    });
+
+    it('should follow the opening sensor after an entity registry rename', async () => {
+      const station = createMockStation('demo', 'Demo station', 'Demo', { e5: '1.899' });
+      await setupCard({}, station);
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Open');
+
+      const entityId = renameStatus(station);
+      element.hass = { ...hass, entities: { ...station.entities }, states: { ...station.states } };
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Open');
+
+      element.hass = {
+        ...element.hass,
+        states: { ...element.hass.states, [entityId]: { ...station.states[entityId], state: 'off' } },
+      };
+      await element.updateComplete;
+      expect(element.shadowRoot?.querySelector('.badge')?.textContent).toBe('Closed');
+    });
+  });
+
   describe('Unresolvable entities', () => {
     it('should report an unknown status instead of claiming the station is closed', async () => {
       // No status entity at all: the card was told nothing, and used to render a greyed-out

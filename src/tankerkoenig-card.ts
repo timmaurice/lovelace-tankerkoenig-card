@@ -297,7 +297,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         if (fuelType === 'e5') stations[deviceId].e5 = entityId;
         if (fuelType === 'e10') stations[deviceId].e10 = entityId;
         if (fuelType === 'diesel') stations[deviceId].diesel = entityId;
-        if (entityId.endsWith('_status')) {
+        if (
+          (entityId.startsWith('binary_sensor.') && stateObj.attributes.device_class === 'opening') ||
+          entityId.endsWith('_status')
+        ) {
           stations[deviceId].status = entityId;
         }
       });
