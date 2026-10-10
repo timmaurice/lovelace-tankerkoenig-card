@@ -56,7 +56,7 @@ const EDITOR_ELEMENT_NAME = `${ELEMENT_NAME}-editor`;
 // The device classes Home Assistant gives a station's open/closed sensor: `opening` since
 // 2026.8 (home-assistant/core#176145), `door` before. The card supports 2026.6 and later, so
 // a sensor renamed away from `_status` has to be found by either.
-const STATUS_DEVICE_CLASSES = new Set(['opening', 'door']);
+const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door']);
 
 declare global {
   interface Window {
