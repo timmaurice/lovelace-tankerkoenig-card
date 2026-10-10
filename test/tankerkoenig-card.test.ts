@@ -1599,6 +1599,19 @@ describe('utils', () => {
       expect(utils.getLogoUrl('raiffeisen')).toBe(`${LOGO_BASE_URL}raiffeisen.png`);
     });
 
+    it('should map Q1 variations to the base q1 logo', () => {
+      expect(utils.getLogoUrl('Q1')).toBe(`${LOGO_BASE_URL}q1.png`);
+      expect(utils.getLogoUrl('Q1 Automaten')).toBe(`${LOGO_BASE_URL}q1.png`);
+      expect(utils.getLogoUrl('Q1 Automaten-Tankstelle')).toBe(`${LOGO_BASE_URL}q1.png`);
+    });
+
+    it('should transliterate umlauts instead of dropping them', () => {
+      expect(utils.getLogoUrl('Grüne')).toBe(`${LOGO_BASE_URL}gruene.png`);
+      expect(utils.getLogoUrl('Fläming Tank')).toBe(`${LOGO_BASE_URL}flaeming-tank.png`);
+      expect(utils.getLogoUrl('Flaeming Tank')).toBe(`${LOGO_BASE_URL}flaeming-tank.png`);
+      expect(utils.getLogoUrl('Größe Öl')).toBe(`${LOGO_BASE_URL}groesse-oel.png`);
+    });
+
     it('should map bft variations to the base bft logo', () => {
       expect(utils.getLogoUrl('bft-Tankstelle')).toBe(`${LOGO_BASE_URL}bft.png`);
       expect(utils.getLogoUrl('BFT')).toBe(`${LOGO_BASE_URL}bft.png`);

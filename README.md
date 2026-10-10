@@ -92,6 +92,7 @@ Some of the supported brands include:
 - Flaeming Tank
 - Globus
 - Greenline
+- Grüne
 - HEM
 - Hessol
 - Hornbach
@@ -106,12 +107,14 @@ Some of the supported brands include:
 - Mundorf Tank
 - Nordoel
 - OIL!
+- Oktan
 - OMV
 - ORLEN / ORLEN Express
 - PIN _(incl. Service-Station)_
-- Q1
+- Q1 _(incl. Automaten-Tankstelle)_
 - Raiffeisen
 - RAN
+- Roth Energie
 - SB-Tank
 - Schillhorn
 - Schindele
