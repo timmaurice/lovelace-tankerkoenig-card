@@ -267,7 +267,9 @@ export function entityProblemMessage(hass: HomeAssistant, resolved: ResolvedEnti
 const LOGO_BASE_URL =
   'https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/src/gasstation_logos/';
 
-const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen', 'bft', 'pin', 'q1'];
+const BRAND_PREFIXES = ['globus', 'raiffeisen', 'svg', 'orlen', 'bft', 'pin', 'q1', 'totalenergies'];
+
+const BRAND_ALIASES: Record<string, string> = { 'tankstelle-gruene': 'gruene' };
 
 const UMLAUTS: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
 
@@ -360,7 +362,11 @@ export function getLogoUrl(brand?: string): string {
     .toLowerCase()
     .replace(/[äöüß]/g, (char) => UMLAUTS[char])
     .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  formattedBrand = BRAND_ALIASES[formattedBrand] ?? formattedBrand;
 
   const matchedPrefix = BRAND_PREFIXES.find((prefix) => formattedBrand.startsWith(prefix));
   if (matchedPrefix) {

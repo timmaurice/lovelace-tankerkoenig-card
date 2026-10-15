@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
 import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
@@ -1610,6 +1612,44 @@ describe('utils', () => {
       expect(utils.getLogoUrl('Fläming Tank')).toBe(`${LOGO_BASE_URL}flaeming-tank.png`);
       expect(utils.getLogoUrl('Flaeming Tank')).toBe(`${LOGO_BASE_URL}flaeming-tank.png`);
       expect(utils.getLogoUrl('Größe Öl')).toBe(`${LOGO_BASE_URL}groesse-oel.png`);
+    });
+
+    it('should collapse repeated and trim surrounding dashes', () => {
+      expect(utils.getLogoUrl('Roth- Energie')).toBe(`${LOGO_BASE_URL}roth-energie.png`);
+      expect(utils.getLogoUrl('K+K Klaas & Kock')).toBe(`${LOGO_BASE_URL}kk-klaas-kock.png`);
+      expect(utils.getLogoUrl(' Aral ')).toBe(`${LOGO_BASE_URL}aral.png`);
+    });
+
+    it('should map TotalEnergies variations to the base totalenergies logo', () => {
+      expect(utils.getLogoUrl('TotalEnergies Autohof')).toBe(`${LOGO_BASE_URL}totalenergies.png`);
+      expect(utils.getLogoUrl('TotalEnergies Truckstop')).toBe(`${LOGO_BASE_URL}totalenergies.png`);
+      expect(utils.getLogoUrl('TOTAL')).toBe(`${LOGO_BASE_URL}total.png`);
+    });
+
+    it('should map brand aliases to their logo', () => {
+      expect(utils.getLogoUrl('Tankstelle Grüne')).toBe(`${LOGO_BASE_URL}gruene.png`);
+    });
+
+    it('should resolve brands as the Tankerkönig API reports them to a bundled logo', () => {
+      const brands = [
+        'OKTAN',
+        'Tankstelle Grüne',
+        'Roth- Energie',
+        'Q1',
+        'Q1 Automaten-Tankstelle',
+        'Q1 Scherer',
+        'GULF',
+        'TinQ',
+        'TOTAL',
+        'TotalEnergies',
+        'TotalEnergies Autohof',
+        'TotalEnergies Truckstop',
+        'K+K Klaas & Kock',
+      ];
+      for (const brand of brands) {
+        const file = utils.getLogoUrl(brand).slice(LOGO_BASE_URL.length);
+        expect(existsSync(resolve(__dirname, '../src/gasstation_logos', file)), `${brand} -> ${file}`).toBe(true);
+      }
     });
 
     it('should map bft variations to the base bft logo', () => {

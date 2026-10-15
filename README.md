@@ -93,6 +93,7 @@ Some of the supported brands include:
 - Globus
 - Greenline
 - Grüne
+- Gulf
 - HEM
 - Hessol
 - Hornbach
@@ -125,9 +126,10 @@ Some of the supported brands include:
 - Star
 - SVG
 - Team
+- TinQ
 - Trigema
 - Total
-- Total Energies
+- TotalEnergies _(incl. Autohof, Truckstop)_
 - V-Markt
 - Westfalen
 
