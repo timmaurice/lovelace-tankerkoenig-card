@@ -1,6 +1,5 @@
+/// <reference types="vite/client" />
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
 import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
@@ -1646,9 +1645,12 @@ describe('utils', () => {
         'TotalEnergies Truckstop',
         'K+K Klaas & Kock',
       ];
+      const bundledLogos = Object.keys(import.meta.glob('../src/gasstation_logos/*.png')).map((path) =>
+        path.slice(path.lastIndexOf('/') + 1),
+      );
       for (const brand of brands) {
         const file = utils.getLogoUrl(brand).slice(LOGO_BASE_URL.length);
-        expect(existsSync(resolve(__dirname, '../src/gasstation_logos', file)), `${brand} -> ${file}`).toBe(true);
+        expect(bundledLogos, `${brand} -> ${file}`).toContain(file);
       }
     });
 
