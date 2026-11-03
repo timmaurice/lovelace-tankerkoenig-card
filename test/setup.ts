@@ -2,12 +2,12 @@ import { vi, type Mock } from 'vitest';
 import type { LovelaceCard } from '../src/types.js';
 import type { LovelaceHelpers } from '../src/tankerkoenig-card.js';
 
-// Mock ResizeObserver for the JSDOM environment
-const ResizeObserverMock = vi.fn(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// A class, since the card constructs it with `new`.
+class ResizeObserverMock {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 // Mock for window.customCards
 if (typeof window !== 'undefined') {

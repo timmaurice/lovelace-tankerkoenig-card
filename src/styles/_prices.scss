@@ -23,12 +23,12 @@
     box-shadow 0.15s ease;
 
   &.diesel {
-    width: 4.4em;
+    min-width: 4.4em;
   }
 
   &.e10,
   &.e5 {
-    width: 3.6em;
+    min-width: 3.6em;
   }
 
   &:hover {
@@ -103,6 +103,7 @@
     &.diesel,
     &.e10,
     &.e5 {
+      min-width: 0;
       width: auto;
     }
   }
@@ -110,6 +111,7 @@
   .prices.prices-side-by-side {
     display: flex;
     flex-direction: row;
+    zoom: var(--prices-zoom, 1);
   }
 
   .prices.prices-side-by-side .price-container {
@@ -117,12 +119,12 @@
     flex-direction: column;
 
     &.diesel {
-      width: 4.4em;
+      min-width: 4.4em;
     }
 
     &.e10,
     &.e5 {
-      width: 3.6em;
+      min-width: 3.6em;
     }
   }
 }

@@ -111,6 +111,8 @@
   display: inline-flex;
   flex-shrink: 0;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   position: relative;
 }
 

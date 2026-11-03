@@ -641,6 +641,16 @@ const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
  * hours. A day counts as covered by a range from midnight to 23:59 or later, or by the
  * `00:00-00:00` that some stations use for the same thing.
  */
+// Below this zoom the fuel names get unreadable, so the prices stack instead.
+export const MIN_PRICES_ZOOM = 0.9;
+
+// 1 at full size, a zoom factor when shrinking a little is enough, otherwise 'stacked'.
+export function fitPrices(available: number, natural: number): number | 'stacked' {
+  if (natural <= 0 || available >= natural) return 1;
+  const zoom = Math.floor((available / natural) * 100) / 100;
+  return zoom >= MIN_PRICES_ZOOM ? zoom : 'stacked';
+}
+
 export function isOpenAroundTheClock(rules: OpeningRule[]): boolean {
   const coversWholeDay = (range: TimeRange): boolean =>
     range.startMin === 0 && (range.endMin >= LAST_MINUTE_OF_DAY || range.endMin === 0);
