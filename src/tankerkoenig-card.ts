@@ -33,6 +33,7 @@ import {
   resolveEntity,
   translateDays,
   migrateShowAddress,
+  fitPrices,
 } from './utils';
 import styles from './styles/card.styles.scss';
 
@@ -64,6 +65,10 @@ const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door'])
 // are fetched once and then every few hours, never on a price update.
 const OPENING_TIMES_REFRESH_MS = 6 * 60 * 60 * 1000;
 
+// The narrowest the name column may get before side-by-side prices give way: enough for the
+// station name to read and for a badge such as "Schließt um 22:00".
+const NAME_COLUMN_MIN_EM = 9;
+
 declare global {
   interface Window {
     customCards?: {
@@ -88,6 +93,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   private _openingTimesFetchedAt = 0;
   private _openingTimesPending = false;
   private _openingTimesFor = '';
+  @state() private _pricesFit: number | 'stacked' = 1;
+  private _naturalPricesWidth = 0;
+  private _resizeObserver?: ResizeObserver;
+  private _observedCard?: Element;
   private _stationCache: Record<string, Station> | null = null;
   private _watchedEntities: Set<string> = new Set();
   // Every entity the registry lists for a configured device, whether or not it had a state
@@ -101,6 +110,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
     this._config = migrateShowAddress(config);
     this._stationCache = null; // Invalidate cache so it recalculates on next update
+    // Fuel types and font scale change how wide the prices are, so they are measured afresh.
+    this._pricesFit = 1;
+    this._naturalPricesWidth = 0;
   }
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
@@ -363,7 +375,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       changedProperties.has('_config') ||
       changedProperties.has('_expandedStations') ||
       changedProperties.has('_priceChanges') ||
-      changedProperties.has('_openingTimes')
+      changedProperties.has('_openingTimes') ||
+      changedProperties.has('_pricesFit')
     ) {
       // Home Assistant sets the config before it sets a hass, and the cache is built out of
       // the entity registry - so without this guard the very first update threw.
@@ -429,6 +442,26 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     super.disconnectedCallback();
     document.removeEventListener('click', this._closeAllTooltips);
     this._expandedStations = new Set();
+    this._resizeObserver?.disconnect();
+    this._observedCard = undefined;
+  }
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    this._observeSize();
+  }
+
+  /**
+   * Watches the card's width so a rotated phone or a resized column refits the prices. It is
+   * the ha-card that is watched: the host element is inline, and a ResizeObserver never
+   * reports a size change for an inline box.
+   */
+  private _observeSize(): void {
+    if (typeof ResizeObserver === 'undefined' || !this._card || this._observedCard === this._card) return;
+    this._resizeObserver ??= new ResizeObserver(() => this._fitPrices());
+    this._resizeObserver.disconnect();
+    this._resizeObserver.observe(this._card);
+    this._observedCard = this._card;
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -441,6 +474,44 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
     }
     this._markOverflowingNames();
+    this._observeSize();
+    this._fitPrices();
+  }
+
+  /**
+   * Decides how `show_prices_side_by_side` is honoured at this card's width.
+   *
+   * Forced side by side, three prices on a phone left the name column about 47 pixels: the
+   * name shrank to one letter and the badge ran over the diesel price. So the prices stay
+   * side by side where they fit, shrink a little where that is enough, and stack where not.
+   */
+  private _fitPrices(): void {
+    if (!this._config?.show_prices_side_by_side) return;
+    const rows = [...(this.shadowRoot?.querySelectorAll<HTMLElement>('.station') ?? [])];
+    const info = rows[0]?.querySelector<HTMLElement>('.info');
+    if (!info) return;
+
+    // Only a block at full size tells how wide it is; a shrunk or stacked one does not.
+    if (this._pricesFit === 1) {
+      this._naturalPricesWidth = Math.max(
+        ...rows.map((row) => row.querySelector('.prices')?.getBoundingClientRect().width ?? 0),
+      );
+    }
+
+    const row = rows[0];
+    const rowStyle = getComputedStyle(row);
+    const logoWidth = row.querySelector('.logo-container')?.getBoundingClientRect().width ?? 0;
+    const gaps = (logoWidth ? 2 : 1) * (parseFloat(rowStyle.columnGap) || 0);
+    const available =
+      row.clientWidth -
+      (parseFloat(rowStyle.paddingLeft) || 0) -
+      (parseFloat(rowStyle.paddingRight) || 0) -
+      logoWidth -
+      gaps -
+      NAME_COLUMN_MIN_EM * parseFloat(getComputedStyle(info).fontSize);
+
+    const fit = fitPrices(available, this._naturalPricesWidth);
+    if (fit !== this._pricesFit) this._pricesFit = fit;
   }
 
   /**
@@ -869,8 +940,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 </div>
                 <div
                   class="prices ${classMap({
-                    'prices-side-by-side': this._config.show_prices_side_by_side || false,
+                    'prices-side-by-side':
+                      (this._config.show_prices_side_by_side && this._pricesFit !== 'stacked') || false,
                   })}"
+                  style=${styleMap(
+                    typeof this._pricesFit === 'number' && this._pricesFit < 1
+                      ? { '--prices-zoom': String(this._pricesFit) }
+                      : {},
+                  )}
                 >
                   ${fuelTypesToRender.map((fuel) => {
                     const entityId = station[fuel as keyof Station];

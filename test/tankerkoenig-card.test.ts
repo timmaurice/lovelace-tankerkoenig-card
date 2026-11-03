@@ -1064,6 +1064,56 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Prices side by side on a narrow card', () => {
+    // Restored one by one: restoreAllMocks would also undo the suite-wide fireEvent spy.
+    let fitSpy: ReturnType<typeof vi.spyOn> | undefined;
+    afterEach(() => {
+      fitSpy?.mockRestore();
+      fitSpy = undefined;
+    });
+
+    it('should stack the prices where side by side does not fit', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices').mockReturnValue('stacked');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.839', diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+      await element.updateComplete;
+
+      const prices = element.shadowRoot?.querySelector('.prices') as HTMLElement;
+      expect(prices.classList.contains('prices-side-by-side')).toBe(false);
+    });
+
+    it('should shrink the prices where a little is enough', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices').mockReturnValue(0.93);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e10: '1.839', diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+      await element.updateComplete;
+
+      const prices = element.shadowRoot?.querySelector('.prices') as HTMLElement;
+      expect(prices.classList.contains('prices-side-by-side')).toBe(true);
+      expect(prices.style.getPropertyValue('--prices-zoom')).toBe('0.93');
+    });
+
+    // The host element is inline, and a ResizeObserver never reports an inline box, so turning a
+    // phone left the prices in the layout of the old width.
+    it('should watch the ha-card for size changes, not the inline host', async () => {
+      const observe = vi.spyOn(ResizeObserver.prototype, 'observe');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+
+      expect(observe.mock.calls.map(([target]) => target.tagName)).toEqual(['HA-CARD']);
+      observe.mockRestore();
+    });
+
+    it('should not measure a card that does not ask for side by side', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.699' });
+      await setupCard({}, station);
+
+      expect(fitSpy).not.toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelector('.prices')?.classList.contains('prices-side-by-side')).toBe(false);
+    });
+  });
+
   // Core returns opening times from the tankerkoenig.get_opening_times action instead of a state
   // attribute (home-assistant/core#173021).
   describe('Opening times from the action', () => {
@@ -1919,6 +1969,25 @@ describe('utils', () => {
       expect(res.dayLabel).toBe('tomorrow');
       expect(res.timeMinutes).toBe(8 * 60);
     });
+  });
+});
+
+describe('fitPrices', () => {
+  it('should keep prices at full size where they fit', () => {
+    expect(utils.fitPrices(200, 180)).toBe(1);
+  });
+
+  it('should shrink prices a little where that is enough', () => {
+    expect(utils.fitPrices(134, 144)).toBe(0.93);
+  });
+
+  it('should stack prices that would have to shrink further', () => {
+    // Three prices on a phone: 135 pixels left for a 214 pixel block.
+    expect(utils.fitPrices(135, 214)).toBe('stacked');
+  });
+
+  it('should leave prices alone before they were measured', () => {
+    expect(utils.fitPrices(50, 0)).toBe(1);
   });
 });
 
