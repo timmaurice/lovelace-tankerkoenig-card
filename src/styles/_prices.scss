@@ -22,8 +22,6 @@
     filter 0.15s ease,
     box-shadow 0.15s ease;
 
-  // A minimum rather than a fixed width: at a large font_scale the E10 and E5 price ran out
-  // of a 3.6em box.
   &.diesel {
     min-width: 4.4em;
   }
