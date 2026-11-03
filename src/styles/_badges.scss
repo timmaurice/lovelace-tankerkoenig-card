@@ -3,7 +3,12 @@
   font-size: 0.65em;
   font-weight: bold;
   letter-spacing: 0.5px;
+  // A long badge such as "Öffnet am Donnerstag um 06:00" ends in an ellipsis rather than
+  // running into the prices.
+  min-width: 0;
+  overflow: hidden;
   padding: 2px 5px;
+  text-overflow: ellipsis;
   text-transform: uppercase;
   transition:
     transform 0.1s ease,
