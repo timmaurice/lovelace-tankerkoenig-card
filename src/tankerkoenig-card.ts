@@ -28,6 +28,7 @@ import {
   formatRawOpeningTimes,
   parseRawOpeningTimes,
   OpeningRule,
+  RawOpeningTime,
   cleanOpeningHoursDisplay,
   resolveEntity,
   translateDays,
@@ -58,6 +59,11 @@ const EDITOR_ELEMENT_NAME = `${ELEMENT_NAME}-editor`;
 // a sensor renamed away from `_status` has to be found by either.
 const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door']);
 
+// Core hands out a station's opening times through the `tankerkoenig.get_opening_times` action
+// rather than a state attribute (home-assistant/core#173021). They hardly ever change, so they
+// are fetched once and then every few hours, never on a price update.
+const OPENING_TIMES_REFRESH_MS = 6 * 60 * 60 * 1000;
+
 declare global {
   interface Window {
     customCards?: {
@@ -78,6 +84,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @state() private _config!: TankerkoenigCardConfig;
   @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
   @state() private _expandedStations: Set<string> = new Set();
+  @state() private _openingTimes: Record<string, RawOpeningTime[]> = {};
+  private _openingTimesFetchedAt = 0;
+  private _openingTimesPending = false;
+  private _openingTimesFor = '';
   private _stationCache: Record<string, Station> | null = null;
   private _watchedEntities: Set<string> = new Set();
   // Every entity the registry lists for a configured device, whether or not it had a state
@@ -314,6 +324,15 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._stationCache = stations;
     this._watchedEntities = watchedEntities;
     this._candidateEntities = candidateEntities;
+    // A different set of status entities needs its own opening times. The editor rebuilds the
+    // cache on every keystroke, so an unchanged set keeps the times it already has.
+    const statusKey = Object.values(stations)
+      .map((station) => station.status ?? '')
+      .join('|');
+    if (statusKey !== this._openingTimesFor) {
+      this._openingTimesFor = statusKey;
+      this._openingTimesFetchedAt = 0;
+    }
   }
 
   /**
@@ -343,12 +362,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     if (
       changedProperties.has('_config') ||
       changedProperties.has('_expandedStations') ||
-      changedProperties.has('_priceChanges')
+      changedProperties.has('_priceChanges') ||
+      changedProperties.has('_openingTimes')
     ) {
       // Home Assistant sets the config before it sets a hass, and the cache is built out of
       // the entity registry - so without this guard the very first update threw.
       if (changedProperties.has('_config') && this.hass) {
         this._buildStationCache(this.hass, this._config);
+        this._refreshOpeningTimes();
       }
       return true;
     }
@@ -362,8 +383,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       if (this._entitiesAppeared(oldHass)) {
         this._buildStationCache(this.hass, this._config);
         this._fetchPriceChanges();
+        this._refreshOpeningTimes();
         return true;
       }
+
+      this._refreshOpeningTimes();
 
       let hasChanged = false;
       for (const entityId of this._watchedEntities) {
@@ -459,6 +483,52 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     if (previous === undefined || current === undefined || previous === current) return;
 
     this._priceChanges = { ...this._priceChanges, [entityId]: current > previous ? 'up' : 'down' };
+  }
+
+  private _refreshOpeningTimes(): void {
+    if (Date.now() - this._openingTimesFetchedAt >= OPENING_TIMES_REFRESH_MS) {
+      void this._fetchOpeningTimes();
+    }
+  }
+
+  /**
+   * Loads the opening times of every status entity through `tankerkoenig.get_opening_times`.
+   *
+   * A Home Assistant without that action leaves the card with whatever attributes the status
+   * entity carries, which is all a custom integration ever offered. The fetch time is only set
+   * once there is something to ask, so an action that turns up later is still picked up.
+   */
+  private async _fetchOpeningTimes(): Promise<void> {
+    if (this._openingTimesPending || !this._config || !this.hass?.services?.tankerkoenig?.get_opening_times) return;
+
+    if (!this._stationCache) this._buildStationCache(this.hass, this._config);
+    const statusEntities = Object.values(this._stationCache || {})
+      .map((station) => station.status)
+      .filter((id): id is string => !!id);
+    if (statusEntities.length === 0) return;
+
+    this._openingTimesPending = true;
+    this._openingTimesFetchedAt = Date.now();
+    try {
+      const result = await this.hass.callWS<{ response?: Record<string, { opening_times?: RawOpeningTime[] }> }>({
+        type: 'call_service',
+        domain: 'tankerkoenig',
+        service: 'get_opening_times',
+        target: { entity_id: statusEntities },
+        return_response: true,
+      });
+      const openingTimes: Record<string, RawOpeningTime[]> = {};
+      for (const [entityId, data] of Object.entries(result?.response ?? {})) {
+        if (Array.isArray(data?.opening_times)) openingTimes[entityId] = data.opening_times;
+      }
+      this._openingTimes = openingTimes;
+    } catch (error) {
+      // Opening times are a nicety; the prices render without them. The next attempt waits
+      // for the regular refresh instead of hammering a failing action on every price update.
+      console.warn('tankerkoenig-card: could not load opening times', error);
+    } finally {
+      this._openingTimesPending = false;
+    }
   }
 
   private async _fetchPriceChanges(): Promise<void> {
@@ -581,7 +651,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const twentyFourSevenAttr =
               statusEntity?.attributes?.twenty_four_seven || statusEntity?.attributes?.twenty_four_seven_status;
             const wholeDayAttr = statusEntity?.attributes?.whole_day;
+            const openingTimesFromAction = station.status ? this._openingTimes[station.status] : undefined;
             const openingHoursAttr =
+              (openingTimesFromAction?.length ? openingTimesFromAction : undefined) ||
               statusEntity?.attributes?.opening_hours ||
               statusEntity?.attributes?.opening_times ||
               statusEntity?.attributes?.opening_hours_status;
@@ -908,6 +980,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
   protected firstUpdated(): void {
     this._fetchPriceChanges();
+    this._refreshOpeningTimes();
   }
 
   static styles = css`
