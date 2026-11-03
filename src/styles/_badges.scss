@@ -3,17 +3,18 @@
   font-size: 0.65em;
   font-weight: bold;
   letter-spacing: 0.5px;
-  // A long badge such as "Öffnet am Donnerstag um 06:00" ends in an ellipsis rather than
-  // running into the prices.
+  // A single word wider than the column, at a large font scale on a small phone, breaks too.
+  // As a flex item the badge would otherwise keep its longest word as its minimum width.
   min-width: 0;
-  overflow: hidden;
+  overflow-wrap: break-word;
   padding: 2px 5px;
-  text-overflow: ellipsis;
+  // A badge too long for the name column, such as "Öffnet am Donnerstag um 06:00" on a
+  // phone, wraps onto a second line rather than running into the prices or losing its time.
+  text-wrap: balance;
   text-transform: uppercase;
   transition:
     transform 0.1s ease,
     filter 0.1s ease;
-  white-space: nowrap;
 
   &[title]:not([title='']) {
     cursor: pointer;

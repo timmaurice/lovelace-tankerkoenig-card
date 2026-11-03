@@ -22,13 +22,15 @@
     filter 0.15s ease,
     box-shadow 0.15s ease;
 
+  // A minimum rather than a fixed width: at a large font_scale the E10 and E5 price ran out
+  // of a 3.6em box.
   &.diesel {
-    width: 4.4em;
+    min-width: 4.4em;
   }
 
   &.e10,
   &.e5 {
-    width: 3.6em;
+    min-width: 3.6em;
   }
 
   &:hover {
@@ -103,6 +105,7 @@
     &.diesel,
     &.e10,
     &.e5 {
+      min-width: 0;
       width: auto;
     }
   }
@@ -110,6 +113,7 @@
   .prices.prices-side-by-side {
     display: flex;
     flex-direction: row;
+    zoom: var(--prices-zoom, 1);
   }
 
   .prices.prices-side-by-side .price-container {
@@ -117,12 +121,12 @@
     flex-direction: column;
 
     &.diesel {
-      width: 4.4em;
+      min-width: 4.4em;
     }
 
     &.e10,
     &.e5 {
-      width: 3.6em;
+      min-width: 3.6em;
     }
   }
 }
