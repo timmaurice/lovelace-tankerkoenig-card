@@ -75,7 +75,10 @@
 .info {
   flex-basis: 0;
   flex-grow: 1;
-  min-width: 0;
+  // With prices side by side on a narrow card, the price block left the name column a few
+  // pixels, so the name shrank to one letter and the badge spilled over the diesel price.
+  // Below this width the prices wrap onto a line of their own instead.
+  min-width: 9em;
   position: relative;
 }
 
@@ -111,6 +114,8 @@
   display: inline-flex;
   flex-shrink: 0;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   position: relative;
 }
 
