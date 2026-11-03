@@ -60,13 +60,10 @@ const EDITOR_ELEMENT_NAME = `${ELEMENT_NAME}-editor`;
 // a sensor renamed away from `_status` has to be found by either.
 const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door']);
 
-// Core hands out a station's opening times through the `tankerkoenig.get_opening_times` action
-// rather than a state attribute (home-assistant/core#173021). They hardly ever change, so they
-// are fetched once and then every few hours, never on a price update.
+// Opening times hardly change, so the action is asked again only after this long.
 const OPENING_TIMES_REFRESH_MS = 6 * 60 * 60 * 1000;
 
-// The narrowest the name column may get before side-by-side prices give way: enough for the
-// station name to read and for a badge such as "Schließt um 22:00".
+// Minimum name column width before side-by-side prices shrink or stack.
 const NAME_COLUMN_MIN_EM = 9;
 
 declare global {
@@ -110,7 +107,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
     this._config = migrateShowAddress(config);
     this._stationCache = null; // Invalidate cache so it recalculates on next update
-    // Fuel types and font scale change how wide the prices are, so they are measured afresh.
     this._pricesFit = 1;
     this._naturalPricesWidth = 0;
   }
@@ -336,8 +332,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._stationCache = stations;
     this._watchedEntities = watchedEntities;
     this._candidateEntities = candidateEntities;
-    // A different set of status entities needs its own opening times. The editor rebuilds the
-    // cache on every keystroke, so an unchanged set keeps the times it already has.
+    // Refetch only for a different set of status entities, not on every editor keystroke.
     const statusKey = Object.values(stations)
       .map((station) => station.status ?? '')
       .join('|');
@@ -451,11 +446,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._observeSize();
   }
 
-  /**
-   * Watches the card's width so a rotated phone or a resized column refits the prices. It is
-   * the ha-card that is watched: the host element is inline, and a ResizeObserver never
-   * reports a size change for an inline box.
-   */
+  // Watches the ha-card: the host is inline, and a ResizeObserver never reports an inline box.
   private _observeSize(): void {
     if (typeof ResizeObserver === 'undefined' || !this._card || this._observedCard === this._card) return;
     this._resizeObserver ??= new ResizeObserver(() => this._fitPrices());
@@ -478,20 +469,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._fitPrices();
   }
 
-  /**
-   * Decides how `show_prices_side_by_side` is honoured at this card's width.
-   *
-   * Forced side by side, three prices on a phone left the name column about 47 pixels: the
-   * name shrank to one letter and the badge ran over the diesel price. So the prices stay
-   * side by side where they fit, shrink a little where that is enough, and stack where not.
-   */
+  // Side-by-side prices stay where they fit, shrink a little where that is enough, else stack.
   private _fitPrices(): void {
     if (!this._config?.show_prices_side_by_side) return;
     const rows = [...(this.shadowRoot?.querySelectorAll<HTMLElement>('.station') ?? [])];
     const info = rows[0]?.querySelector<HTMLElement>('.info');
     if (!info) return;
 
-    // Only a block at full size tells how wide it is; a shrunk or stacked one does not.
+    // Only a full-size block tells its natural width.
     if (this._pricesFit === 1) {
       this._naturalPricesWidth = Math.max(
         ...rows.map((row) => row.querySelector('.prices')?.getBoundingClientRect().width ?? 0),
@@ -562,13 +547,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
   }
 
-  /**
-   * Loads the opening times of every status entity through `tankerkoenig.get_opening_times`.
-   *
-   * A Home Assistant without that action leaves the card with whatever attributes the status
-   * entity carries, which is all a custom integration ever offered. The fetch time is only set
-   * once there is something to ask, so an action that turns up later is still picked up.
-   */
+  // Without the action the card falls back to the status entity's attributes.
   private async _fetchOpeningTimes(): Promise<void> {
     if (this._openingTimesPending || !this._config || !this.hass?.services?.tankerkoenig?.get_opening_times) return;
 
@@ -594,8 +573,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
       this._openingTimes = openingTimes;
     } catch (error) {
-      // Opening times are a nicety; the prices render without them. The next attempt waits
-      // for the regular refresh instead of hammering a failing action on every price update.
+      // Retried at the next refresh, not on every price update.
       console.warn('tankerkoenig-card: could not load opening times', error);
     } finally {
       this._openingTimesPending = false;

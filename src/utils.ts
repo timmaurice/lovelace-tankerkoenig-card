@@ -641,16 +641,10 @@ const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
  * hours. A day counts as covered by a range from midnight to 23:59 or later, or by the
  * `00:00-00:00` that some stations use for the same thing.
  */
-// Side-by-side prices may shrink this far before the card stacks them instead. Below it the
-// fuel names turned unreadably small.
+// Below this zoom the fuel names get unreadable, so the prices stack instead.
 export const MIN_PRICES_ZOOM = 0.9;
 
-/**
- * How side-by-side prices fit beside the name column.
- * @param available The width left for the prices once the name column has its minimum.
- * @param natural The width of the prices side by side at full size.
- * @returns 1 at full size, a zoom factor when shrinking a little is enough, 'stacked' otherwise.
- */
+// 1 at full size, a zoom factor when shrinking a little is enough, otherwise 'stacked'.
 export function fitPrices(available: number, natural: number): number | 'stacked' {
   if (natural <= 0 || available >= natural) return 1;
   const zoom = Math.floor((available / natural) * 100) / 100;

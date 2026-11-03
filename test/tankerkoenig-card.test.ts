@@ -1065,7 +1065,7 @@ describe('TankerkoenigCard', () => {
   });
 
   describe('Prices side by side on a narrow card', () => {
-    // Restored one by one: restoreAllMocks would also undo the suite-wide fireEvent spy.
+    // Not restoreAllMocks: that would undo the suite-wide fireEvent spy.
     let fitSpy: ReturnType<typeof vi.spyOn> | undefined;
     afterEach(() => {
       fitSpy?.mockRestore();
@@ -1093,8 +1093,6 @@ describe('TankerkoenigCard', () => {
       expect(prices.style.getPropertyValue('--prices-zoom')).toBe('0.93');
     });
 
-    // The host element is inline, and a ResizeObserver never reports an inline box, so turning a
-    // phone left the prices in the layout of the old width.
     it('should watch the ha-card for size changes, not the inline host', async () => {
       const observe = vi.spyOn(ResizeObserver.prototype, 'observe');
       const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.699' });
@@ -1114,8 +1112,6 @@ describe('TankerkoenigCard', () => {
     });
   });
 
-  // Core returns opening times from the tankerkoenig.get_opening_times action instead of a state
-  // attribute (home-assistant/core#173021).
   describe('Opening times from the action', () => {
     const openingTimesCalls = () =>
       (hass.callWS as Mock).mock.calls.filter(([message]) => message.type === 'call_service');
@@ -1125,7 +1121,6 @@ describe('TankerkoenigCard', () => {
         message.type === 'call_service' ? { context: {}, response } : {},
       );
 
-    // The action resolves after the first render, which then has to render once more.
     const settle = async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await element.updateComplete;
@@ -1982,7 +1977,6 @@ describe('fitPrices', () => {
   });
 
   it('should stack prices that would have to shrink further', () => {
-    // Three prices on a phone: 135 pixels left for a 214 pixel block.
     expect(utils.fitPrices(135, 214)).toBe('stacked');
   });
 
