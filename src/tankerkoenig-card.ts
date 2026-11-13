@@ -28,10 +28,12 @@ import {
   formatRawOpeningTimes,
   parseRawOpeningTimes,
   OpeningRule,
+  RawOpeningTime,
   cleanOpeningHoursDisplay,
   resolveEntity,
   translateDays,
   migrateShowAddress,
+  fitPrices,
 } from './utils';
 import styles from './styles/card.styles.scss';
 
@@ -58,6 +60,20 @@ const EDITOR_ELEMENT_NAME = `${ELEMENT_NAME}-editor`;
 // a sensor renamed away from `_status` has to be found by either.
 const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door']);
 
+// Opening times hardly change, so the action is asked again only after this long.
+const OPENING_TIMES_REFRESH_MS = 6 * 60 * 60 * 1000;
+
+// Home Assistant rebuilds the editor preview on every change, so the answer is kept per set of
+// status entities outside the instance and a fresh card does not ask the action again.
+const openingTimesCache = new Map<string, { fetchedAt: number; times: Record<string, RawOpeningTime[]> }>();
+
+export function clearOpeningTimesCache(): void {
+  openingTimesCache.clear();
+}
+
+// Minimum name column width before side-by-side prices shrink or stack.
+const NAME_COLUMN_MIN_EM = 9;
+
 declare global {
   interface Window {
     customCards?: {
@@ -78,6 +94,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
   @state() private _config!: TankerkoenigCardConfig;
   @state() private _priceChanges: Record<string, 'up' | 'down'> = {};
   @state() private _expandedStations: Set<string> = new Set();
+  @state() private _openingTimes: Record<string, RawOpeningTime[]> = {};
+  private _openingTimesFetchedAt = 0;
+  private _openingTimesPending = false;
+  private _openingTimesFor = '';
+  @state() private _pricesFit: number | 'stacked' = 1;
+  private _naturalPricesWidth = 0;
+  private _resizeObserver?: ResizeObserver;
+  private _observedCard?: Element;
   private _stationCache: Record<string, Station> | null = null;
   private _watchedEntities: Set<string> = new Set();
   // Every entity the registry lists for a configured device, whether or not it had a state
@@ -91,6 +115,8 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     }
     this._config = migrateShowAddress(config);
     this._stationCache = null; // Invalidate cache so it recalculates on next update
+    this._pricesFit = 1;
+    this._naturalPricesWidth = 0;
   }
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
@@ -314,6 +340,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._stationCache = stations;
     this._watchedEntities = watchedEntities;
     this._candidateEntities = candidateEntities;
+    // Refetch only for a different set of status entities, not on every editor keystroke.
+    const statusKey = Object.values(stations)
+      .map((station) => station.status ?? '')
+      .join('|');
+    if (statusKey !== this._openingTimesFor) {
+      this._openingTimesFor = statusKey;
+      this._openingTimesFetchedAt = 0;
+    }
   }
 
   /**
@@ -343,12 +377,15 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     if (
       changedProperties.has('_config') ||
       changedProperties.has('_expandedStations') ||
-      changedProperties.has('_priceChanges')
+      changedProperties.has('_priceChanges') ||
+      changedProperties.has('_openingTimes') ||
+      changedProperties.has('_pricesFit')
     ) {
       // Home Assistant sets the config before it sets a hass, and the cache is built out of
       // the entity registry - so without this guard the very first update threw.
       if (changedProperties.has('_config') && this.hass) {
         this._buildStationCache(this.hass, this._config);
+        this._refreshOpeningTimes();
       }
       return true;
     }
@@ -362,8 +399,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       if (this._entitiesAppeared(oldHass)) {
         this._buildStationCache(this.hass, this._config);
         this._fetchPriceChanges();
+        this._refreshOpeningTimes();
         return true;
       }
+
+      this._refreshOpeningTimes();
 
       let hasChanged = false;
       for (const entityId of this._watchedEntities) {
@@ -405,6 +445,22 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     super.disconnectedCallback();
     document.removeEventListener('click', this._closeAllTooltips);
     this._expandedStations = new Set();
+    this._resizeObserver?.disconnect();
+    this._observedCard = undefined;
+  }
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    this._observeSize();
+  }
+
+  // Watches the ha-card: the host is inline, and a ResizeObserver never reports an inline box.
+  private _observeSize(): void {
+    if (typeof ResizeObserver === 'undefined' || !this._card || this._observedCard === this._card) return;
+    this._resizeObserver ??= new ResizeObserver(() => this._fitPrices());
+    this._resizeObserver.disconnect();
+    this._resizeObserver.observe(this._card);
+    this._observedCard = this._card;
   }
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
@@ -417,6 +473,38 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
     }
     this._markOverflowingNames();
+    this._observeSize();
+    this._fitPrices();
+  }
+
+  // Side-by-side prices stay where they fit, shrink a little where that is enough, else stack.
+  private _fitPrices(): void {
+    if (!this._config?.show_prices_side_by_side) return;
+    const rows = [...(this.shadowRoot?.querySelectorAll<HTMLElement>('.station') ?? [])];
+    const info = rows[0]?.querySelector<HTMLElement>('.info');
+    if (!info) return;
+
+    // Only a full-size block tells its natural width.
+    if (this._pricesFit === 1) {
+      this._naturalPricesWidth = Math.max(
+        ...rows.map((row) => row.querySelector('.prices')?.getBoundingClientRect().width ?? 0),
+      );
+    }
+
+    const row = rows[0];
+    const rowStyle = getComputedStyle(row);
+    const logoWidth = row.querySelector('.logo-container')?.getBoundingClientRect().width ?? 0;
+    const gaps = (logoWidth ? 2 : 1) * (parseFloat(rowStyle.columnGap) || 0);
+    const available =
+      row.clientWidth -
+      (parseFloat(rowStyle.paddingLeft) || 0) -
+      (parseFloat(rowStyle.paddingRight) || 0) -
+      logoWidth -
+      gaps -
+      NAME_COLUMN_MIN_EM * parseFloat(getComputedStyle(info).fontSize);
+
+    const fit = fitPrices(available, this._naturalPricesWidth);
+    if (fit !== this._pricesFit) this._pricesFit = fit;
   }
 
   /**
@@ -459,6 +547,54 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     if (previous === undefined || current === undefined || previous === current) return;
 
     this._priceChanges = { ...this._priceChanges, [entityId]: current > previous ? 'up' : 'down' };
+  }
+
+  private _refreshOpeningTimes(): void {
+    if (Date.now() - this._openingTimesFetchedAt >= OPENING_TIMES_REFRESH_MS) {
+      void this._fetchOpeningTimes();
+    }
+  }
+
+  // Without the action the card falls back to the status entity's attributes.
+  private async _fetchOpeningTimes(): Promise<void> {
+    if (this._openingTimesPending || !this._config || !this.hass?.services?.tankerkoenig?.get_opening_times) return;
+
+    if (!this._stationCache) this._buildStationCache(this.hass, this._config);
+    const statusEntities = Object.values(this._stationCache || {})
+      .map((station) => station.status)
+      .filter((id): id is string => !!id);
+    if (statusEntities.length === 0) return;
+
+    const cacheKey = [...statusEntities].sort().join('|');
+    const cached = openingTimesCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < OPENING_TIMES_REFRESH_MS) {
+      this._openingTimesFetchedAt = cached.fetchedAt;
+      this._openingTimes = cached.times;
+      return;
+    }
+
+    this._openingTimesPending = true;
+    this._openingTimesFetchedAt = Date.now();
+    try {
+      const result = await this.hass.callWS<{ response?: Record<string, { opening_times?: RawOpeningTime[] }> }>({
+        type: 'call_service',
+        domain: 'tankerkoenig',
+        service: 'get_opening_times',
+        target: { entity_id: statusEntities },
+        return_response: true,
+      });
+      const openingTimes: Record<string, RawOpeningTime[]> = {};
+      for (const [entityId, data] of Object.entries(result?.response ?? {})) {
+        if (Array.isArray(data?.opening_times)) openingTimes[entityId] = data.opening_times;
+      }
+      openingTimesCache.set(cacheKey, { fetchedAt: this._openingTimesFetchedAt, times: openingTimes });
+      this._openingTimes = openingTimes;
+    } catch (error) {
+      // Retried at the next refresh, not on every price update.
+      console.warn('tankerkoenig-card: could not load opening times', error);
+    } finally {
+      this._openingTimesPending = false;
+    }
   }
 
   private async _fetchPriceChanges(): Promise<void> {
@@ -581,7 +717,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
             const twentyFourSevenAttr =
               statusEntity?.attributes?.twenty_four_seven || statusEntity?.attributes?.twenty_four_seven_status;
             const wholeDayAttr = statusEntity?.attributes?.whole_day;
+            const openingTimesFromAction = station.status ? this._openingTimes[station.status] : undefined;
             const openingHoursAttr =
+              (openingTimesFromAction?.length ? openingTimesFromAction : undefined) ||
               statusEntity?.attributes?.opening_hours ||
               statusEntity?.attributes?.opening_times ||
               statusEntity?.attributes?.opening_hours_status;
@@ -797,8 +935,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
                 </div>
                 <div
                   class="prices ${classMap({
-                    'prices-side-by-side': this._config.show_prices_side_by_side || false,
+                    'prices-side-by-side':
+                      (this._config.show_prices_side_by_side && this._pricesFit !== 'stacked') || false,
                   })}"
+                  style=${styleMap(
+                    typeof this._pricesFit === 'number' && this._pricesFit < 1
+                      ? { '--prices-zoom': String(this._pricesFit) }
+                      : {},
+                  )}
                 >
                   ${fuelTypesToRender.map((fuel) => {
                     const entityId = station[fuel as keyof Station];
@@ -908,6 +1052,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
   protected firstUpdated(): void {
     this._fetchPriceChanges();
+    this._refreshOpeningTimes();
   }
 
   static styles = css`

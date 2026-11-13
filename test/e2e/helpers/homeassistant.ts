@@ -9,6 +9,7 @@
  * no-op. Everything the suite writes goes into a dashboard of its own, so a
  * manual playground stays intact. No Tankerkoenig API key is ever needed.
  */
+import type { Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -259,4 +260,53 @@ export async function useDashboard(name: string, config: Record<string, unknown>
 /** The Lovelace resources Home Assistant has persisted. */
 export async function resources(): Promise<{ id: string; url: string; type: string }[]> {
   return callWebsocket({ type: 'lovelace/resources' });
+}
+
+export interface StubbedOpeningTime {
+  days: string;
+  start_time: string;
+  end_time: string;
+}
+
+/**
+ * Answers the card's `tankerkoenig.get_opening_times` call with the given hours, per status
+ * entity, and passes every other websocket message through to Home Assistant untouched.
+ *
+ * The card prefers that action's response over the status entity's attributes. The test
+ * instance has no real Tankerkoenig data behind the action, so it answers "open around the
+ * clock" for every station; a spec that wants ordinary hours has to supply them here, and
+ * call this before `page.goto`.
+ */
+export async function stubOpeningTimes(page: Page, hours: Record<string, StubbedOpeningTime[]>): Promise<void> {
+  await page.routeWebSocket(/\/api\/websocket$/, (ws) => {
+    const server = ws.connectToServer();
+    server.onMessage((message) => ws.send(message));
+    ws.onMessage((message) => {
+      const payload =
+        typeof message === 'string'
+          ? (JSON.parse(message) as {
+              id: number;
+              type: string;
+              service?: string;
+              target?: { entity_id?: string | string[] };
+            })
+          : undefined;
+      if (payload?.type === 'call_service' && payload.service === 'get_opening_times') {
+        const response: Record<string, unknown> = {};
+        for (const entityId of [payload.target?.entity_id ?? []].flat() as string[]) {
+          response[entityId] = { opening_times: hours[entityId] ?? [], overrides: [] };
+        }
+        ws.send(
+          JSON.stringify({
+            id: payload.id,
+            type: 'result',
+            success: true,
+            result: { context: { id: 'e2e-stub', parent_id: null, user_id: null }, response },
+          }),
+        );
+        return;
+      }
+      server.send(message);
+    });
+  });
 }

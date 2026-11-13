@@ -2,7 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
-import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
+import {
+  TankerkoenigCard as TankerkoenigCardClass,
+  clearOpeningTimesCache,
+  type TankerkoenigCard,
+} from '../src/tankerkoenig-card';
 import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
 // Mock console.info
@@ -108,6 +112,7 @@ describe('TankerkoenigCard', () => {
   };
 
   beforeEach(() => {
+    clearOpeningTimesCache();
     hass = {
       localize: (key: string) => key,
       language: 'en',
@@ -1064,6 +1069,196 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Prices side by side on a narrow card', () => {
+    // Not restoreAllMocks: that would undo the suite-wide fireEvent spy.
+    let fitSpy: ReturnType<typeof vi.spyOn> | undefined;
+    afterEach(() => {
+      fitSpy?.mockRestore();
+      fitSpy = undefined;
+    });
+
+    it('should stack the prices where side by side does not fit', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices').mockReturnValue('stacked');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', e10: '1.839', diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+      await element.updateComplete;
+
+      const prices = element.shadowRoot?.querySelector('.prices') as HTMLElement;
+      expect(prices.classList.contains('prices-side-by-side')).toBe(false);
+    });
+
+    it('should shrink the prices where a little is enough', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices').mockReturnValue(0.93);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e10: '1.839', diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+      await element.updateComplete;
+
+      const prices = element.shadowRoot?.querySelector('.prices') as HTMLElement;
+      expect(prices.classList.contains('prices-side-by-side')).toBe(true);
+      expect(prices.style.getPropertyValue('--prices-zoom')).toBe('0.93');
+    });
+
+    it('should watch the ha-card for size changes, not the inline host', async () => {
+      const observe = vi.spyOn(ResizeObserver.prototype, 'observe');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.699' });
+      await setupCard({ show_prices_side_by_side: true }, station);
+
+      expect(observe.mock.calls.map(([target]) => target.tagName)).toEqual(['HA-CARD']);
+      observe.mockRestore();
+    });
+
+    it('should not measure a card that does not ask for side by side', async () => {
+      fitSpy = vi.spyOn(utils, 'fitPrices');
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { diesel: '1.699' });
+      await setupCard({}, station);
+
+      expect(fitSpy).not.toHaveBeenCalled();
+      expect(element.shadowRoot?.querySelector('.prices')?.classList.contains('prices-side-by-side')).toBe(false);
+    });
+  });
+
+  describe('Opening times from the action', () => {
+    const openingTimesCalls = () =>
+      (hass.callWS as Mock).mock.calls.filter(([message]) => message.type === 'call_service');
+
+    const answerWith = (response: Record<string, unknown>) =>
+      (hass.callWS as Mock).mockImplementation(async (message: { type: string }) =>
+        message.type === 'call_service' ? { context: {}, response } : {},
+      );
+
+    const settle = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await element.updateComplete;
+    };
+
+    beforeEach(() => {
+      hass.services = { tankerkoenig: { get_opening_times: {} } };
+    });
+
+    it('should show the opening times the action returns', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      answerWith({
+        'binary_sensor.aral_status': {
+          opening_times: [
+            { days: 'Mo-Fr', start_time: '08:30:00', end_time: '19:00:00' },
+            { days: 'Samstag', start_time: '08:30:00', end_time: '18:00:00' },
+          ],
+        },
+      });
+      await setupCard({}, station);
+      await settle();
+
+      expect(openingTimesCalls()).toEqual([
+        [
+          {
+            type: 'call_service',
+            domain: 'tankerkoenig',
+            service: 'get_opening_times',
+            target: { entity_id: ['binary_sensor.aral_status'] },
+            return_response: true,
+          },
+        ],
+      ]);
+
+      element.shadowRoot
+        ?.querySelector('.badge')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      const lines = element.shadowRoot?.querySelectorAll('.opening-hours-callout .opening-hours-line');
+      expect(lines?.length).toBe(2);
+      expect(lines?.[0].querySelector('.opening-hours-days')?.textContent).toBe('Mon-Fri');
+      expect(lines?.[0].querySelector('.opening-hours-time')?.textContent).toBe('08:30-19:00');
+    });
+
+    it('should show the 24/7 badge for a station the action reports open around the clock', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      answerWith({
+        'binary_sensor.aral_status': {
+          opening_times: [{ days: 'Mo-So', start_time: '00:00:00', end_time: '23:59:59' }],
+        },
+      });
+      await setupCard({}, station);
+      await settle();
+
+      expect(element.shadowRoot?.querySelector('.badge-247')?.textContent).toBe('24/7');
+    });
+
+    it('should not ask again on a price update', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      answerWith({ 'binary_sensor.aral_status': { opening_times: [] } });
+      await setupCard({}, station);
+      await settle();
+
+      const raised = { ...hass.states['sensor.aral_e5'], state: '1.929' };
+      element.hass = { ...hass, states: { ...hass.states, 'sensor.aral_e5': raised } };
+      await settle();
+      element.setConfig({ ...config, show_price_changes: false });
+      await settle();
+
+      expect(openingTimesCalls().length).toBe(1);
+    });
+
+    it('should not ask again when a new card is built for the same stations', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      answerWith({ 'binary_sensor.aral_status': { opening_times: [] } });
+      await setupCard({}, station);
+      await settle();
+
+      const rebuilt = document.createElement('tankerkoenig-card') as TankerkoenigCard;
+      document.body.appendChild(rebuilt);
+      rebuilt.hass = hass;
+      rebuilt.setConfig(config);
+      await rebuilt.updateComplete;
+      await settle();
+      document.body.removeChild(rebuilt);
+
+      expect(openingTimesCalls().length).toBe(1);
+    });
+
+    it('should fall back to the attribute when the action knows no opening times', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].attributes.opening_hours = 'Mo-Fr 06:00-22:00';
+      answerWith({ 'binary_sensor.aral_status': { opening_times: [] } });
+      await setupCard({}, station);
+      await settle();
+
+      element.shadowRoot
+        ?.querySelector('.badge')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      await element.updateComplete;
+
+      expect(element.shadowRoot?.querySelector('.opening-hours-callout')?.textContent).toContain('06:00-22:00');
+    });
+
+    it('should not call the action where Home Assistant does not offer it', async () => {
+      delete hass.services;
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      station.states['binary_sensor.aral_status'].attributes.opening_times = [
+        { days: 'Mo-So', start_time: '00:00:00', end_time: '23:59:59' },
+      ];
+      await setupCard({}, station);
+      await settle();
+
+      expect(openingTimesCalls()).toEqual([]);
+      expect(element.shadowRoot?.querySelector('.badge-247')).not.toBeNull();
+    });
+
+    it('should render the card when the action fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      (hass.callWS as Mock).mockRejectedValue(
+        new Error('Service call requested response data but did not match any entities'),
+      );
+      await setupCard({}, station);
+      await settle();
+
+      expect(warn).toHaveBeenCalledWith('tankerkoenig-card: could not load opening times', expect.any(Error));
+      expect(element.shadowRoot?.querySelectorAll('.station').length).toBe(1);
+      warn.mockRestore();
+    });
+  });
+
   describe('Opening Times and Badges Options', () => {
     it('should render 24/7 badge when twenty_four_seven is true on status entity', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
@@ -1791,6 +1986,24 @@ describe('utils', () => {
       expect(res.dayLabel).toBe('tomorrow');
       expect(res.timeMinutes).toBe(8 * 60);
     });
+  });
+});
+
+describe('fitPrices', () => {
+  it('should keep prices at full size where they fit', () => {
+    expect(utils.fitPrices(200, 180)).toBe(1);
+  });
+
+  it('should shrink prices a little where that is enough', () => {
+    expect(utils.fitPrices(134, 144)).toBe(0.93);
+  });
+
+  it('should stack prices that would have to shrink further', () => {
+    expect(utils.fitPrices(135, 214)).toBe('stacked');
+  });
+
+  it('should leave prices alone before they were measured', () => {
+    expect(utils.fitPrices(50, 0)).toBe(1);
   });
 });
 

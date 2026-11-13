@@ -148,30 +148,34 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 
 ## Configuration
 
-| Name                        | Type                                | Default                     | Description                                                                                                       |
-| --------------------------- | ----------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `type`                      | string                              | **Required**                | `custom:tankerkoenig-card`                                                                                        |
-| `title`                     | string                              | `(none)`                    | The title of the card.                                                                                            |
-| `stations`                  | list (string or object)             | **Required**                | A list of device IDs. To set a custom name or logo, use an object: `{ device: '...', name: '...', logo: '...' }`. |
-| `show_address`              | boolean                             | `(unset)`                   | Deprecated. `false` still hides the whole address; use `show_street`/`show_postcode`/`show_city` instead.         |
-| `show_street`               | boolean                             | `true`                      | Show the street and house number of the station.                                                                  |
-| `show_postcode`             | boolean                             | `true`                      | Show the postcode of the station.                                                                                 |
-| `show_city`                 | boolean                             | `true`                      | Show the city of the station.                                                                                     |
-| `clickable_addresses`       | boolean                             | `false`                     | Make addresses clickable links that open in your preferred navigation / maps application.                         |
-| `map_provider`              | 'google', 'apple', 'waze'           | `'google'`                  | Used alongside `clickable_addresses` to choose which map app opens.                                               |
-| `show_last_updated`         | boolean                             | `false`                     | Show the last updated timestamp for the station.                                                                  |
-| `show_price_changes`        | boolean                             | `false`                     | Show an indicator for price increases or decreases.                                                               |
-| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']`   | The order in which to display the fuel types.                                                                     |
-| `hide_unavailable_stations` | boolean                             | `false`                     | Hide stations that are currently closed. The key keeps its old name; the editor calls it "Hide Closed Stations".  |
-| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                    | Sort stations by the price of the selected fuel type.                                                             |
-| `show_only_cheapest`        | boolean                             | `false`                     | Show only the cheapest station(s). Requires `sort_by` to be set to a fuel type.                                   |
-| `show_only_cheapest_count`  | number                              | `1`                         | The number of cheapest stations to show when `show_only_cheapest` is enabled.                                     |
-| `show_prices_side_by_side`  | boolean                             | `false`                     | Force prices to be displayed side-by-side on mobile devices.                                                      |
-| `price_bg_color`            | string                              | `var(--divider-color)`      | The background color of the price display.                                                                        |
-| `price_font_color`          | string                              | `var(--primary-text-color)` | The font color of the price display.                                                                              |
-| `font_scale`                | number                              | `100`                       | A percentage to scale the font size of the price and fuel type (e.g., `80` for 80%).                              |
-| `show_24_7_badge`           | boolean                             | `true`                      | Show 24/7 Badge for open 24/7 stations.                                                                           |
-| `show_opening_status`       | boolean                             | `true`                      | Show Opening Status badge (Closes soon / Opens at).                                                               |
+| Name                        | Type                                | Default                     | Description                                                                                                                        |
+| --------------------------- | ----------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                      | string                              | **Required**                | `custom:tankerkoenig-card`                                                                                                         |
+| `title`                     | string                              | `(none)`                    | The title of the card.                                                                                                             |
+| `stations`                  | list (string or object)             | **Required**                | A list of device IDs. To set a custom name or logo, use an object: `{ device: '...', name: '...', logo: '...' }`.                  |
+| `show_address`              | boolean                             | `(unset)`                   | Deprecated. `false` still hides the whole address; use `show_street`/`show_postcode`/`show_city` instead.                          |
+| `show_street`               | boolean                             | `true`                      | Show the street and house number of the station.                                                                                   |
+| `show_postcode`             | boolean                             | `true`                      | Show the postcode of the station.                                                                                                  |
+| `show_city`                 | boolean                             | `true`                      | Show the city of the station.                                                                                                      |
+| `clickable_addresses`       | boolean                             | `false`                     | Make addresses clickable links that open in your preferred navigation / maps application.                                          |
+| `map_provider`              | 'google', 'apple', 'waze'           | `'google'`                  | Used alongside `clickable_addresses` to choose which map app opens.                                                                |
+| `show_last_updated`         | boolean                             | `false`                     | Show the last updated timestamp for the station.                                                                                   |
+| `show_price_changes`        | boolean                             | `false`                     | Show an indicator for price increases or decreases.                                                                                |
+| `fuel_types`                | list ('e5' \| 'e10' \| 'diesel')    | `['diesel', 'e10', 'e5']`   | The order in which to display the fuel types.                                                                                      |
+| `hide_unavailable_stations` | boolean                             | `false`                     | Hide stations that are currently closed. The key keeps its old name; the editor calls it "Hide Closed Stations".                   |
+| `sort_by`                   | 'e5' \| 'e10' \| 'diesel' \| 'none' | `'none'`                    | Sort stations by the price of the selected fuel type.                                                                              |
+| `show_only_cheapest`        | boolean                             | `false`                     | Show only the cheapest station(s). Requires `sort_by` to be set to a fuel type.                                                    |
+| `show_only_cheapest_count`  | number                              | `1`                         | The number of cheapest stations to show when `show_only_cheapest` is enabled.                                                      |
+| `show_prices_side_by_side`  | boolean                             | `false`                     | Show prices side by side on narrow cards where they fit beside the station name, shrunk a little if need be; otherwise they stack. |
+| `price_bg_color`            | string                              | `var(--divider-color)`      | The background color of the price display.                                                                                         |
+| `price_font_color`          | string                              | `var(--primary-text-color)` | The font color of the price display.                                                                                               |
+| `font_scale`                | number                              | `100`                       | A percentage to scale the font size of the price and fuel type (e.g., `80` for 80%).                                               |
+| `show_24_7_badge`           | boolean                             | `true`                      | Show 24/7 Badge for open 24/7 stations.                                                                                            |
+| `show_opening_status`       | boolean                             | `true`                      | Show Opening Status badge (Closes soon / Opens at).                                                                                |
+
+### Opening Times
+
+The opening times come from the `tankerkoenig.get_opening_times` action when your Home Assistant provides it. The card asks for all stations at once and asks again only every six hours. Without the action it falls back to the `opening_hours`, `opening_times` or `opening_hours_status` attribute of the station's status entity. Click the badge to open a callout with the opening hours; it only opens when opening times are known.
 
 ### Station Object Parameters
 
