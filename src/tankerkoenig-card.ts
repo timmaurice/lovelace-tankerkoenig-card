@@ -178,7 +178,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
    * @returns The grid footprint, in grid units.
    */
   public getGridOptions(): LovelaceGridOptions {
-    return { columns: 'full', min_columns: 6, rows: 'auto', min_rows: 2 };
+    return { columns: 'full', min_columns: 4, rows: 'auto', min_rows: 2 };
   }
 
   /**
