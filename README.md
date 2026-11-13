@@ -252,6 +252,16 @@ To test your compiled card locally without modifying your production Home Assist
 
 When you're done, you can clean up the environment by running `npm run docker:stop`. Note that your configuration will persist in the `test/ha-config` folder.
 
+### End-to-end tests
+
+The Playwright suite runs from a fresh clone with one command (Docker and Node required):
+
+```bash
+npm ci && npx playwright install chromium && npm run test:e2e
+```
+
+Global setup builds the card, starts the compose Home Assistant, onboards it through the API (user `admin` / `password`), registers the bundle as a Lovelace resource and adds a tiny fixture integration (`test/e2e/ha-fixture`) that provides the fuel-station devices. No Tankerkönig API key is needed. CI runs the same thing in `.github/workflows/e2e.yml`.
+
 </details>
 
 ---

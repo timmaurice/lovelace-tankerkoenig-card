@@ -4,6 +4,7 @@ services:
     image: homeassistant/home-assistant:2026.11.1
     volumes:
       - ./test/ha-config:/config
+      - ./test/e2e/ha-fixture/custom_components/e2e_stations:/config/custom_components/e2e_stations:ro
       - ./dist:/config/www/tankerkoenig-card:ro
     environment:
       - TZ=Europe/Berlin

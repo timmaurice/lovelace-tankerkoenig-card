@@ -1,11 +1,13 @@
 /**
- * Talks to the Home Assistant the repository's docker-compose already provides.
+ * Talks to the Home Assistant the repository's docker-compose provides.
  *
- * The suite deliberately reuses that instance instead of booting one of its
- * own: it is already onboarded and serves `dist/` as a Lovelace resource, which
- * is what makes an end-to-end assertion worth more than a mock. Everything the
- * suite writes goes into a dashboard of its own, so the manual playground stays
- * intact.
+ * The suite works from a fresh clone: if the instance has never been set up,
+ * global setup onboards it through the API, adds a tracked minimal fixture
+ * integration (`ha-fixture/custom_components/e2e_stations`, mounted by
+ * docker-compose) that provides the station devices, and registers `dist/` as a
+ * Lovelace resource. On an instance that is already set up all of that is a
+ * no-op. Everything the suite writes goes into a dashboard of its own, so a
+ * manual playground stays intact. No Tankerkoenig API key is ever needed.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -33,6 +35,91 @@ export const PASSWORD = process.env.HA_E2E_PASSWORD ?? 'password';
 /** Brings the repository's own compose environment up if it is not running. */
 export function ensureRunning(): void {
   execFileSync('docker', ['compose', 'up', '-d'], { cwd: REPO_ROOT, stdio: 'inherit' });
+}
+
+/**
+ * Completes Home Assistant's onboarding through its API when the instance is
+ * brand new (CI, a fresh clone). Once onboarding is done the endpoint answers
+ * 404 and this does nothing.
+ */
+export async function ensureOnboarded(): Promise<void> {
+  const status = await fetch(`${BASE_URL}/api/onboarding`);
+  if (status.status === 404) return;
+  const steps = (await status.json()) as { step: string; done: boolean }[];
+  if (steps.every((step) => step.done)) return;
+
+  const clientId = `${BASE_URL}/`;
+  const json = { 'Content-Type': 'application/json' };
+  let accessToken: string | undefined;
+
+  if (!steps.find((step) => step.step === 'user')?.done) {
+    const created = await fetch(`${BASE_URL}/api/onboarding/users`, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify({
+        client_id: clientId,
+        name: 'E2E Admin',
+        username: USERNAME,
+        password: PASSWORD,
+        language: 'en',
+      }),
+    });
+    if (!created.ok) throw new Error(`onboarding user step failed: ${created.status} ${await created.text()}`);
+    const { auth_code: code } = (await created.json()) as { auth_code: string };
+    const token = await fetch(`${BASE_URL}/auth/token`, {
+      method: 'POST',
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId }),
+    });
+    if (!token.ok) throw new Error(`onboarding token exchange failed: ${token.status} ${await token.text()}`);
+    accessToken = ((await token.json()) as { access_token: string }).access_token;
+  }
+
+  if (!accessToken) {
+    throw new Error(
+      'Home Assistant is half onboarded (user exists, other steps open); remove test/ha-config and retry.',
+    );
+  }
+  const auth = { ...json, Authorization: `Bearer ${accessToken}` };
+  for (const [step, body] of [
+    ['core_config', {}],
+    ['analytics', {}],
+    ['integration', { client_id: clientId, redirect_uri: `${clientId}?auth_callback=1` }],
+  ] as const) {
+    const res = await fetch(`${BASE_URL}/api/onboarding/${step}`, {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`onboarding ${step} step failed: ${res.status} ${await res.text()}`);
+  }
+}
+
+/** Adds the fixture station integration unless it is already configured. */
+export async function ensureStationFixture(): Promise<void> {
+  const headers = { Authorization: `Bearer ${readTokens().access_token}`, 'Content-Type': 'application/json' };
+  const entries = await fetch(`${BASE_URL}/api/config/config_entries/entry?domain=e2e_stations`, { headers });
+  if (entries.ok && ((await entries.json()) as unknown[]).length > 0) return;
+  const flow = await fetch(`${BASE_URL}/api/config/config_entries/flow`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ handler: 'e2e_stations', show_advanced_options: false }),
+  });
+  const result = (await flow.json()) as { type?: string; reason?: string; message?: string };
+  if (!flow.ok || result.type !== 'create_entry') {
+    throw new Error(`could not set up the e2e_stations fixture: ${flow.status} ${JSON.stringify(result)}`);
+  }
+}
+
+/** Registers the built bundle (and the stylesheet) as Lovelace resources if missing. */
+export async function ensureCardResources(): Promise<void> {
+  const existing = await resources();
+  for (const [url, type] of [
+    ['/local/tankerkoenig-card/tankerkoenig-card.js', 'module'],
+    ['/local/tankerkoenig-card/stylesheet.css', 'css'],
+  ] as const) {
+    if (existing.some((resource) => new URL(resource.url, 'http://ha.invalid').pathname === url)) continue;
+    await callWebsocket({ type: 'lovelace/resources/create', res_type: type, url });
+  }
 }
 
 export async function waitForFrontend(timeoutMs = 180_000): Promise<void> {

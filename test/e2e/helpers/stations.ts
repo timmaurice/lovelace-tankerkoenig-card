@@ -5,10 +5,10 @@
  * The card looks a station up by **device id**: it walks `hass.entities` for the
  * entities that belong to that device and sorts them by their `fuel_type`
  * attribute. Home Assistant has no API for creating a device - only an
- * integration can - so the suite borrows devices that already exist in the
- * repository's own docker instance, writes its own states onto their entities,
- * and puts the original states back when it is done. Nothing is deleted, and the
- * attribute shape below is copied from the integration's `sensor.py` /
+ * integration can - so the devices come from the tracked fixture integration
+ * `e2e_stations` (test/e2e/ha-fixture). The suite writes its own states onto
+ * their entities and puts the original states back when it is done. The
+ * attribute shape below is copied from the real integration's `sensor.py` /
  * `binary_sensor.py`, not invented.
  */
 import { callWebsocket, getState, setState, type StateObject } from './homeassistant';
@@ -49,7 +49,7 @@ export async function findStations(count: number): Promise<StationEntities[]> {
   const entities = await callWebsocket<RegistryEntity[]>({ type: 'config/entity_registry/list' });
   const byDevice = new Map<string, string[]>();
   for (const entity of entities) {
-    if (!entity.device_id) continue;
+    if (!entity.device_id || entity.platform !== 'e2e_stations') continue;
     if (!entity.entity_id.startsWith('sensor.') && !entity.entity_id.startsWith('binary_sensor.')) continue;
     const list = byDevice.get(entity.device_id) ?? [];
     list.push(entity.entity_id);
@@ -68,7 +68,7 @@ export async function findStations(count: number): Promise<StationEntities[]> {
   if (found.length < count) {
     throw new Error(
       `Need ${count} station device(s) with three sensors and a status binary sensor, found ${found.length}. ` +
-        'Configure the tankerkoenig integration in the docker instance first.',
+        'Global setup should have added the e2e_stations fixture integration.',
     );
   }
   return found;
