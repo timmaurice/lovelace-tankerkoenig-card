@@ -1,0 +1,11 @@
+{
+  "domain": "e2e_stations",
+  "name": "E2E fuel stations",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/timmaurice/lovelace-tankerkoenig-card",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "single_config_entry": true,
+  "version": "1.0.0"
+}
