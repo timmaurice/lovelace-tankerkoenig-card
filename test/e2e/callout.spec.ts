@@ -7,15 +7,17 @@
  * the callout keeps out of the way of the row below it.
  */
 import { test, expect } from './fixtures/hass';
-import { setState, useDashboard } from './helpers/homeassistant';
+import { setState, stubOpeningTimes, useDashboard } from './helpers/homeassistant';
 import { findStations, restoreStations, seedStation, type StationEntities } from './helpers/stations';
 
-const HOURS = 'Mo-Fr 06:00-22:00';
+const HOURS = [{ days: 'Mo-Fr', start_time: '06:00:00', end_time: '22:00:00' }];
 
 const NAMES = ['E2E Callout Oben', 'E2E Callout Unten'];
 
 let urlPath: string;
 let stations: StationEntities[];
+
+const hoursByStatus = () => Object.fromEntries(stations.map((station) => [station.status, HOURS]));
 
 test.beforeAll(async () => {
   stations = (await findStations(6)).slice(4);
@@ -33,10 +35,11 @@ test.beforeAll(async () => {
     });
     // seedStation marks a station as open around the clock, which renders the 24/7 badge.
     // These stations keep ordinary hours instead, so their badge shows when they close.
+    // The hours come from the get_opening_times action (stubbed per page), which the card
+    // prefers over any attribute.
     await setState(station.status, 'on', {
       friendly_name: `${NAMES[index]} Status`,
       device_class: 'door',
-      opening_hours: HOURS,
     });
   }
 
@@ -76,6 +79,7 @@ async function openFirstCallout(page: import('@playwright/test').Page) {
 
 test.describe('The opening-hours callout', () => {
   test('does not cover the station below it', async ({ page }) => {
+    await stubOpeningTimes(page, hoursByStatus());
     await page.goto(`/${urlPath}/0`);
     const { card, callout } = await openFirstCallout(page);
 
@@ -90,6 +94,7 @@ test.describe('The opening-hours callout', () => {
   });
 
   test('pushes the list down rather than floating over it, on a phone too', async ({ page }) => {
+    await stubOpeningTimes(page, hoursByStatus());
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/${urlPath}/0`);
 
@@ -111,6 +116,7 @@ test.describe('The opening-hours callout', () => {
   });
 
   test('gets the width of the card, not of the info column', async ({ page }) => {
+    await stubOpeningTimes(page, hoursByStatus());
     // As a child of .info it was handed the card's width minus the logo, the gaps and the
     // price column, so a multi-rule hours string wrapped far more than it had to.
     await page.setViewportSize({ width: 390, height: 844 });
@@ -130,6 +136,7 @@ test.describe('The opening-hours callout', () => {
   });
 
   test('does not shift the row it belongs to when it opens', async ({ page }) => {
+    await stubOpeningTimes(page, hoursByStatus());
     // .station is align-items: center, so a callout inside the row made the row taller and
     // re-centred the logo and the price column - the row jumped under the finger that opened
     // it. As a wrapped line of its own the callout leaves the first line's height alone.
@@ -151,6 +158,7 @@ test.describe('The opening-hours callout', () => {
   });
 
   test('points its arrow at the badge that opened it', async ({ page }) => {
+    await stubOpeningTimes(page, hoursByStatus());
     // The arrow was pinned to the callout's own left edge, which stopped being anywhere near
     // the badge the moment the callout spanned the card.
     await page.goto(`/${urlPath}/0`);
