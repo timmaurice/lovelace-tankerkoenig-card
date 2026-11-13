@@ -1,7 +1,7 @@
 services:
   homeassistant:
     container_name: ha-tankerkoenig-card-test
-    image: homeassistant/home-assistant:stable
+    image: homeassistant/home-assistant:2026.11.1
     volumes:
       - ./test/ha-config:/config
       - ./dist:/config/www/tankerkoenig-card:ro
