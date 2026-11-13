@@ -63,6 +63,14 @@ const STATUS_DEVICE_CLASSES: ReadonlySet<unknown> = new Set(['opening', 'door'])
 // Opening times hardly change, so the action is asked again only after this long.
 const OPENING_TIMES_REFRESH_MS = 6 * 60 * 60 * 1000;
 
+// Home Assistant rebuilds the editor preview on every change, so the answer is kept per set of
+// status entities outside the instance and a fresh card does not ask the action again.
+const openingTimesCache = new Map<string, { fetchedAt: number; times: Record<string, RawOpeningTime[]> }>();
+
+export function clearOpeningTimesCache(): void {
+  openingTimesCache.clear();
+}
+
 // Minimum name column width before side-by-side prices shrink or stack.
 const NAME_COLUMN_MIN_EM = 9;
 
@@ -557,6 +565,14 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       .filter((id): id is string => !!id);
     if (statusEntities.length === 0) return;
 
+    const cacheKey = [...statusEntities].sort().join('|');
+    const cached = openingTimesCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < OPENING_TIMES_REFRESH_MS) {
+      this._openingTimesFetchedAt = cached.fetchedAt;
+      this._openingTimes = cached.times;
+      return;
+    }
+
     this._openingTimesPending = true;
     this._openingTimesFetchedAt = Date.now();
     try {
@@ -571,6 +587,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       for (const [entityId, data] of Object.entries(result?.response ?? {})) {
         if (Array.isArray(data?.opening_times)) openingTimes[entityId] = data.opening_times;
       }
+      openingTimesCache.set(cacheKey, { fetchedAt: this._openingTimesFetchedAt, times: openingTimes });
       this._openingTimes = openingTimes;
     } catch (error) {
       // Retried at the next refresh, not on every price update.

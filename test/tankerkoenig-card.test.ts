@@ -2,7 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
-import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
+import {
+  TankerkoenigCard as TankerkoenigCardClass,
+  clearOpeningTimesCache,
+  type TankerkoenigCard,
+} from '../src/tankerkoenig-card';
 import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
 // Mock console.info
@@ -108,6 +112,7 @@ describe('TankerkoenigCard', () => {
   };
 
   beforeEach(() => {
+    clearOpeningTimesCache();
     hass = {
       localize: (key: string) => key,
       language: 'en',
@@ -1190,6 +1195,23 @@ describe('TankerkoenigCard', () => {
       await settle();
       element.setConfig({ ...config, show_price_changes: false });
       await settle();
+
+      expect(openingTimesCalls().length).toBe(1);
+    });
+
+    it('should not ask again when a new card is built for the same stations', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899' });
+      answerWith({ 'binary_sensor.aral_status': { opening_times: [] } });
+      await setupCard({}, station);
+      await settle();
+
+      const rebuilt = document.createElement('tankerkoenig-card') as TankerkoenigCard;
+      document.body.appendChild(rebuilt);
+      rebuilt.hass = hass;
+      rebuilt.setConfig(config);
+      await rebuilt.updateComplete;
+      await settle();
+      document.body.removeChild(rebuilt);
 
       expect(openingTimesCalls().length).toBe(1);
     });
