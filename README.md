@@ -173,6 +173,10 @@ To achieve the digital clock-style font for the prices as seen in the screenshot
 | `show_24_7_badge`           | boolean                             | `true`                      | Show 24/7 Badge for open 24/7 stations.                                                                                            |
 | `show_opening_status`       | boolean                             | `true`                      | Show Opening Status badge (Closes soon / Opens at).                                                                                |
 
+### Opening Times
+
+The opening times come from the `tankerkoenig.get_opening_times` action when your Home Assistant provides it. The card asks for all stations at once and asks again only every six hours. Without the action it falls back to the `opening_hours`, `opening_times` or `opening_hours_status` attribute of the station's status entity. Click the badge to open a callout with the opening hours; it only opens when opening times are known.
+
 ### Station Object Parameters
 
 | Name     | Type   | Required     | Description                                          |
