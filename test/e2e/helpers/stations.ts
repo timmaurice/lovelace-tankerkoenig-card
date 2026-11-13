@@ -13,6 +13,31 @@
  */
 import { callWebsocket, getState, setState, type StateObject } from './homeassistant';
 
+const READY_TIMEOUT_MS = 60_000;
+
+/**
+ * Waits until every fixture entity has come to life: registered, set up, and carrying its first
+ * state. The entity registry lists an entity a moment before the integration writes that
+ * entity's initial state, and on a fresh instance (or right after a restart, when restored
+ * states read `unavailable`) that initial write lands on top of whatever a spec has seeded in
+ * the meantime - the card then renders the fixture's 1.5 instead of the seeded price.
+ */
+export async function waitForFixtureStates(): Promise<void> {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let pending: string[] = [];
+  while (Date.now() < deadline) {
+    const entities = await callWebsocket<RegistryEntity[]>({ type: 'config/entity_registry/list' });
+    const ids = entities.filter((entity) => entity.platform === 'e2e_stations').map((entity) => entity.entity_id);
+    const states = await Promise.all(ids.map((id) => getState(id)));
+    pending = ids.filter((_, index) => !states[index] || states[index]!.state === 'unavailable');
+    if (ids.length > 0 && pending.length === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(
+    `Fixture entities never got a state within ${READY_TIMEOUT_MS}ms: ${pending.join(', ') || 'none registered'}`,
+  );
+}
+
 interface RegistryEntity {
   entity_id: string;
   device_id: string | null;
@@ -46,6 +71,7 @@ const snapshots = new Map<string, StateObject | null>();
  * station.
  */
 export async function findStations(count: number): Promise<StationEntities[]> {
+  await waitForFixtureStates();
   const entities = await callWebsocket<RegistryEntity[]>({ type: 'config/entity_registry/list' });
   const byDevice = new Map<string, string[]>();
   for (const entity of entities) {
