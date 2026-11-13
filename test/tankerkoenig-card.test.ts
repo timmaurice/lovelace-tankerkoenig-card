@@ -355,7 +355,7 @@ describe('TankerkoenigCard', () => {
 
       expect(element.getGridOptions()).toEqual({
         columns: 'full',
-        min_columns: 6,
+        min_columns: 4,
         rows: 'auto',
         min_rows: 2,
       });

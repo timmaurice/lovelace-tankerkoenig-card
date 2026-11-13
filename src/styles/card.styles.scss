@@ -212,3 +212,52 @@
     transform: none;
   }
 }
+
+// A card squeezed into a narrow sections slot (min_columns 4 is roughly 120px). The rules
+// above hold down to ~200px; below that the opening-hours badge and the price tiles, which
+// are sized for a wider row, are allowed to wrap instead of overflowing the card.
+@container tankerkoenig-card (max-width: 200px) {
+  .badge-container {
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .badge {
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+}
+
+@container tankerkoenig-card (max-width: 150px) {
+  // Next to the logo the name would be left with a few pixels; wrapping under it gives the
+  // name and the badge the card's width.
+  .info {
+    flex: 1 1 6em;
+  }
+
+  .prices,
+  .prices.prices-side-by-side {
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-left: 0;
+    max-width: 100%;
+    min-width: 0;
+    width: auto;
+  }
+
+  // The label goes above the price: side by side they are wider than the card.
+  .price-container,
+  .prices.prices-side-by-side .price-container {
+    align-items: center;
+    flex-direction: column;
+
+    &.diesel,
+    &.e10,
+    &.e5 {
+      min-width: 0;
+      width: auto;
+    }
+  }
+}
