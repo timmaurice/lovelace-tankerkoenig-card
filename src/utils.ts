@@ -703,6 +703,7 @@ export function parseRawOpeningTimes(rawTimes: RawOpeningTime[]): OpeningRule[] 
 export function formatRawOpeningTimes(rawTimes: RawOpeningTime[]): string {
   if (!Array.isArray(rawTimes)) return '';
   return rawTimes
+    .filter((item) => item.start_time && item.end_time)
     .map((item) => {
       const start = item.start_time.split(':').slice(0, 2).join(':');
       const end = item.end_time.split(':').slice(0, 2).join(':');

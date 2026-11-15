@@ -1855,6 +1855,16 @@ describe('Raw opening times', () => {
       ]),
     ).toBe('Mo-Fr: 06:00-22:00 • Sa-So: 08:00-20:00');
   });
+
+  it('should skip an entry without times, as the parser does', () => {
+    // Calling .split on the missing time threw inside render() and blanked the whole card.
+    const times = [
+      { days: 'Mo-Fr', start_time: '06:00:00', end_time: '22:00:00' },
+      { days: 'Sa' } as utils.RawOpeningTime,
+    ];
+    expect(utils.formatRawOpeningTimes(times)).toBe('Mo-Fr: 06:00-22:00');
+    expect(utils.parseRawOpeningTimes(times)).toHaveLength(1);
+  });
 });
 
 describe('Duplicate resource registration', () => {
