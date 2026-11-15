@@ -1743,6 +1743,24 @@ describe('utils', () => {
       expect(rules[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
     });
 
+    it('should read the day names people type into free text', () => {
+      expect(utils.parseOpeningHours('Mo - Fr 06:00-22:00')[0].days).toEqual([1, 2, 3, 4, 5]);
+      expect(utils.parseOpeningHours('werktags 06:00-22:00')[0].days).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(utils.parseOpeningHours('täglich 06:00-22:00')[0].days).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(utils.parseOpeningHours('Sa und So 08:00-20:00')[0].days).toEqual([6, 0]);
+    });
+
+    it('should drop a rule it only half understands instead of guessing', () => {
+      // Reading only 'täglich' and 'So' out of this turned it into Sunday only - the opposite.
+      expect(utils.parseOpeningHours('täglich außer So 06:00-22:00')[0].days).toEqual([]);
+      const rules = utils.parseOpeningHours('werktags 06:00-22:00; So 08:00-20:00');
+      // Sunday 05:00: the Sunday hours apply, not the weekday ones.
+      expect(utils.getOpeningStatus(rules, false, new Date('2026-11-15T05:00:00'))).toMatchObject({
+        status: 'opening_soon',
+        timeMinutes: 8 * 60,
+      });
+    });
+
     it('should parse comma-separated days correctly', () => {
       const rules = utils.parseOpeningHours('Mo, Di, Mi: 07:00-20:00');
       expect(rules.length).toBe(1);
@@ -1836,6 +1854,16 @@ describe('Raw opening times', () => {
         { days: 'Sa-So', start_time: '08:00:00', end_time: '20:00:00' },
       ]),
     ).toBe('Mo-Fr: 06:00-22:00 • Sa-So: 08:00-20:00');
+  });
+
+  it('should skip an entry without times, as the parser does', () => {
+    // Calling .split on the missing time threw inside render() and blanked the whole card.
+    const times = [
+      { days: 'Mo-Fr', start_time: '06:00:00', end_time: '22:00:00' },
+      { days: 'Sa' } as utils.RawOpeningTime,
+    ];
+    expect(utils.formatRawOpeningTimes(times)).toBe('Mo-Fr: 06:00-22:00');
+    expect(utils.parseRawOpeningTimes(times)).toHaveLength(1);
   });
 });
 

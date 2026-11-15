@@ -428,6 +428,12 @@ const DAY_MAP: Record<string, number> = {
 // station closed on Sundays was then reported as opening at 08:00 every Sunday.
 const HOLIDAY_TOKENS = new Set(['feiertag', 'feiertage', 'fei', 'holiday', 'holidays']);
 
+// Words that stand for several days at once. 'werktags' is Monday to Saturday in German.
+const DAY_GROUPS: Record<string, number[]> = {
+  täglich: [0, 1, 2, 3, 4, 5, 6],
+  werktags: [1, 2, 3, 4, 5, 6],
+};
+
 export function parseOpeningHours(str: string): OpeningRule[] {
   const rules: OpeningRule[] = [];
   if (!str) return rules;
@@ -488,15 +494,24 @@ export function parseOpeningHours(str: string): OpeningRule[] {
 
 function parseDays(dayStr: string): number[] {
   const days: number[] = [];
-  const parts = dayStr.toLowerCase().split(/[\s,]+/);
+  const parts = dayStr
+    .toLowerCase()
+    .replace(/\s*-\s*/g, '-')
+    .split(/[\s,]+/);
   // Tracked separately from `days`: a rule that names only holidays applies to no weekday,
   // which is not the same as a rule whose day names we failed to understand at all.
   let recognised = false;
+  let unknown = false;
 
   for (const part of parts) {
-    if (!part) continue;
+    if (!part || part === 'und') continue;
     if (HOLIDAY_TOKENS.has(part.trim())) {
       recognised = true;
+      continue;
+    }
+    if (DAY_GROUPS[part]) {
+      recognised = true;
+      days.push(...DAY_GROUPS[part]);
       continue;
     }
     if (part.includes('-')) {
@@ -511,16 +526,23 @@ function parseDays(dayStr: string): number[] {
           current = (current + 1) % 7;
         }
         days.push(end);
+      } else {
+        unknown = true;
       }
     } else {
       const day = DAY_MAP[part.trim()];
       if (day !== undefined) {
         recognised = true;
         days.push(day);
+      } else {
+        unknown = true;
       }
     }
   }
 
+  // Known days next to a word we cannot read ("täglich außer So") may mean the opposite of
+  // what we would guess, so the rule applies to no day and the badge falls back to Open/Closed.
+  if (recognised && unknown) return [];
   if (days.length > 0) return days;
   // Nothing we could read - assume the hours are meant for every day, as before.
   return recognised ? [] : [0, 1, 2, 3, 4, 5, 6];
@@ -681,6 +703,7 @@ export function parseRawOpeningTimes(rawTimes: RawOpeningTime[]): OpeningRule[] 
 export function formatRawOpeningTimes(rawTimes: RawOpeningTime[]): string {
   if (!Array.isArray(rawTimes)) return '';
   return rawTimes
+    .filter((item) => item.start_time && item.end_time)
     .map((item) => {
       const start = item.start_time.split(':').slice(0, 2).join(':');
       const end = item.end_time.split(':').slice(0, 2).join(':');
