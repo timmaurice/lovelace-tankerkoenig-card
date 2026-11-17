@@ -110,16 +110,12 @@ export async function ensureStationFixture(): Promise<void> {
   }
 }
 
-/** Registers the built bundle (and the stylesheet) as Lovelace resources if missing. */
+/** Registers the built bundle as a Lovelace resource if missing. */
 export async function ensureCardResources(): Promise<void> {
   const existing = await resources();
-  for (const [url, type] of [
-    ['/local/tankerkoenig-card/tankerkoenig-card.js', 'module'],
-    ['/local/tankerkoenig-card/stylesheet.css', 'css'],
-  ] as const) {
-    if (existing.some((resource) => new URL(resource.url, 'http://ha.invalid').pathname === url)) continue;
-    await callWebsocket({ type: 'lovelace/resources/create', res_type: type, url });
-  }
+  const url = '/local/tankerkoenig-card/tankerkoenig-card.js';
+  if (existing.some((resource) => new URL(resource.url, 'http://ha.invalid').pathname === url)) return;
+  await callWebsocket({ type: 'lovelace/resources/create', res_type: 'module', url });
 }
 
 export async function waitForFrontend(timeoutMs = 180_000): Promise<void> {

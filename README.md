@@ -137,14 +137,11 @@ If a logo for a specific brand is missing, the card will show a generic fallback
 
 If you are missing a logo, please open an [issue](https://github.com/timmaurice/lovelace-tankerkoenig-card/issues) and provide the brand name _(entity attribute)_.
 
-## Custom Font _(Manual Step Required)_
+## Custom Font
 
-To achieve the digital clock-style font for the prices as seen in the screenshots, you need to add the stylesheet to your Lovelace resources.
+The prices use a digital clock-style font. It ships with the card, so there is nothing to install.
 
-1.  Copy the [`stylesheet.css`](https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/refs/heads/main/dist/stylesheet.css) file from the `dist` folder of this repository into your `config/www/community/lovelace-tankerkoenig-card/` directory.
-2.  Add the stylesheet as a resource in Home Assistant under `Settings` -> `Dashboards` -> `⋮` (top right) -> `Resources`.
-    - URL: `/local/community/lovelace-tankerkoenig-card/stylesheet.css`
-    - Resource Type: `Stylesheet (CSS)`
+If you added `stylesheet.css` as a dashboard resource for an earlier version, you can remove that resource under `Settings` -> `Dashboards` -> `⋮` (top right) -> `Resources`. Keeping it does no harm, but once a Marketplace update has replaced the card's folder the file is gone and the resource points nowhere.
 
 ## Configuration
 
