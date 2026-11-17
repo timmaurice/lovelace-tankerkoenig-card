@@ -57,4 +57,19 @@ test.describe('Lovelace resource registration', () => {
     // A bundle loaded twice must not throw on the second define().
     expect(consoleErrors.filter((text) => /has already been used/i.test(text))).toEqual([]);
   });
+
+  test('brings the price font without a stylesheet resource', async ({ page }) => {
+    // The setup registers no stylesheet, so the font can only come from the bundle,
+    // which is loaded twice here and must still declare it once.
+    const urlPath = await useDashboard('resources', { views: [{ title: 'Empty', cards: [] }] });
+    await page.goto(`/${urlPath}/0`);
+    await page.waitForFunction(() => customElements.get('tankerkoenig-card') !== undefined, { timeout: 60_000 });
+
+    expect(await page.locator('head style#tankerkoenig-card-font').count()).toBe(1);
+    const loaded = await page.evaluate(async () => {
+      await document.fonts.load('16px "Digital-7"');
+      return document.fonts.check('16px "Digital-7"');
+    });
+    expect(loaded).toBe(true);
+  });
 });
