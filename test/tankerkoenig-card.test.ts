@@ -187,6 +187,15 @@ describe('TankerkoenigCard', () => {
     });
   });
 
+  describe('Price font', () => {
+    it('should declare the font once on the page, not inside the shadow root', async () => {
+      // A second evaluation of the bundle (a duplicate resource) must not add it again.
+      vi.resetModules();
+      await import('../src/tankerkoenig-card');
+      expect(document.head.querySelectorAll('style#tankerkoenig-card-font')).toHaveLength(1);
+    });
+  });
+
   describe('Card picker and layout', () => {
     it('should not throw when Home Assistant asks before hass exists', () => {
       expect(() => TankerkoenigCardClass.getStubConfig()).not.toThrow();

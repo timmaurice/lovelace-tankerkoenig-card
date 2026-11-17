@@ -34,6 +34,7 @@ import {
   migrateShowAddress,
 } from './utils';
 import styles from './styles/card.styles.scss';
+import digitalFont from './styles/digital-font.scss';
 
 export interface LovelaceHelpers {
   createCardElement(config: { type: string; [key: string]: unknown }): LovelaceCard;
@@ -921,6 +922,16 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 // evaluation - so the card would not register at all and simply vanish.
 if (!customElements.get(ELEMENT_NAME)) {
   customElements.define(ELEMENT_NAME, TankerkoenigCard);
+}
+
+// The price font. A @font-face inside the card's shadow root is ignored, so it is
+// declared once on the page; it used to be a stylesheet users had to add by hand.
+const FONT_STYLE_ID = 'tankerkoenig-card-font';
+if (!document.getElementById(FONT_STYLE_ID)) {
+  const fontStyle = document.createElement('style');
+  fontStyle.id = FONT_STYLE_ID;
+  fontStyle.textContent = String(digitalFont);
+  document.head.append(fontStyle);
 }
 
 if (typeof window !== 'undefined') {
