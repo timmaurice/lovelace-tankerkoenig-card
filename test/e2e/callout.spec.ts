@@ -11,6 +11,8 @@ import { setState, stubOpeningTimes, useDashboard } from './helpers/homeassistan
 import { findStations, restoreStations, seedStation, type StationEntities } from './helpers/stations';
 
 const HOURS = [{ days: 'Mo-Fr', start_time: '06:00:00', end_time: '22:00:00' }];
+// The same hours as the attribute a Home Assistant without the get_opening_times action reports.
+const HOURS_ATTRIBUTE = 'Mo-Fr 06:00-22:00';
 
 const NAMES = ['E2E Callout Oben', 'E2E Callout Unten'];
 
@@ -35,11 +37,13 @@ test.beforeAll(async () => {
     });
     // seedStation marks a station as open around the clock, which renders the 24/7 badge.
     // These stations keep ordinary hours instead, so their badge shows when they close.
-    // The hours come from the get_opening_times action (stubbed per page), which the card
-    // prefers over any attribute.
+    // Where Home Assistant offers the get_opening_times action, the hours come from it
+    // (stubbed per page) and the card prefers them; without the action, as on the CI
+    // instance, the card reads the same hours from the attribute.
     await setState(station.status, 'on', {
       friendly_name: `${NAMES[index]} Status`,
       device_class: 'door',
+      opening_hours: HOURS_ATTRIBUTE,
     });
   }
 
