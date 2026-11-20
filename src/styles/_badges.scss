@@ -3,12 +3,15 @@
   font-size: 0.65em;
   font-weight: bold;
   letter-spacing: 0.5px;
+  // Lets a flex item break a word wider than the column.
+  min-width: 0;
+  overflow-wrap: break-word;
   padding: 2px 5px;
+  text-wrap: balance;
   text-transform: uppercase;
   transition:
     transform 0.1s ease,
     filter 0.1s ease;
-  white-space: nowrap;
 
   &[title]:not([title='']) {
     cursor: pointer;

@@ -36,6 +36,7 @@ export interface HomeAssistant {
   language: string;
   locale: FrontendLocaleData;
   callWS: <T>(message: { type: string; [key: string]: unknown }) => Promise<T>;
+  services?: { [domain: string]: { [service: string]: unknown } };
   /**
    * Composes an entity's name the way Home Assistant's own cards do (since 2026.4). Optional
    * because a hass object from before that release, or a test double, does not carry it.
