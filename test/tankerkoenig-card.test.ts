@@ -600,15 +600,16 @@ describe('TankerkoenigCard', () => {
         expect(stationName?.textContent).toBe('Station 2');
       });
 
-      it('should return multiple stations if they share the cheapest price', async () => {
+      it('should break a price tie by the configured station order', async () => {
         const station1 = createMockStation('station1', 'Station 1', 'Brand1', { e10: '1.80' });
         const station2 = createMockStation('station2', 'Station 2', 'Brand2', { e10: '1.70' });
         const station3 = createMockStation('station3', 'Station 3', 'Brand3', { e10: '1.70' });
 
-        await setupCard({ sort_by: 'e10', show_only_cheapest: true }, station1, station2, station3);
+        await setupCard({ sort_by: 'e10', show_only_cheapest: true }, station1, station3, station2);
 
         const stationEls = element.shadowRoot?.querySelectorAll('.station');
-        expect(stationEls?.length).toBe(2);
+        expect(stationEls?.length).toBe(1);
+        expect(stationEls?.[0].querySelector('.station-name')?.textContent).toBe('Station 3');
       });
 
       it('should not filter stations if show_only_cheapest is true but sort_by is none', async () => {

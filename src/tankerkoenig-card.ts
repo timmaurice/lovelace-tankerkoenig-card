@@ -245,13 +245,9 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       const stationsWithPrice = stationEntries.filter(([, station]) => sortPrice(station) !== undefined);
 
       if (stationsWithPrice.length > 0) {
-        const count = this._config.show_only_cheapest_count || 1;
-        if (count === 1) {
-          const minPrice = Math.min(...stationsWithPrice.map(([, station]) => sortPrice(station) as number));
-          stationEntries = stationsWithPrice.filter(([, station]) => sortPrice(station) === minPrice);
-        } else {
-          stationEntries = stationsWithPrice.slice(0, count);
-        }
+        // The sort is stable, so stations with the same price keep the configured order and a
+        // tie no longer shows more stations than the count asks for (#42).
+        stationEntries = stationsWithPrice.slice(0, this._config.show_only_cheapest_count || 1);
       }
     }
 
