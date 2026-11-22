@@ -9,7 +9,7 @@
 
 A custom Lovelace card for Home Assistant to display fuel prices from [Tankerkönig](https://www.tankerkoenig.de/) sensors.
 
-<img src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/image.png" alt="Card Screenshot" />
+<img src="https://raw.githubusercontent.com/timmaurice/lovelace-tankerkoenig-card/main/image.png" alt="Card Screenshot" width="500" />
 
 ## Features
 
