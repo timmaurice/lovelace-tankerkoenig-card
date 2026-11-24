@@ -1790,6 +1790,20 @@ describe('utils', () => {
       expect(res.timeMinutes).toBe(22 * 60);
     });
 
+    it('should not announce a closing time for a day that runs into the next one', () => {
+      // Open around the clock Monday to Saturday, shorter on Sunday: not 24/7, but Monday
+      // night does not close. It used to read "closes at 23:59" all day and "closes soon"
+      // from 23:00 (2026-11-23 is a Monday).
+      const rules = utils.parseRawOpeningTimes([
+        { days: 'Mo-Sa', start_time: '00:00:00', end_time: '23:59:59' },
+        { days: 'So', start_time: '06:00:00', end_time: '22:00:00' },
+      ]);
+      expect(utils.getOpeningStatus(rules, true, new Date('2026-11-23T23:30:00'))).toEqual({ status: 'open' });
+      expect(utils.getOpeningStatus(rules, true, new Date('2026-11-23T10:00:00'))).toEqual({ status: 'open' });
+      // Saturday night does close: Sunday only opens at 06:00.
+      expect(utils.getOpeningStatus(rules, true, new Date('2026-11-28T23:30:00')).status).toBe('closing_soon');
+    });
+
     it('should return open normally when not close to closing time', () => {
       const rules = utils.parseOpeningHours('06:00-22:00');
       const now = new Date();
