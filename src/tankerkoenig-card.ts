@@ -357,8 +357,10 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
       }
 
       if (this._entitiesAppeared(oldHass)) {
+        const priceEntitiesBefore = this._priceEntities().join();
         this._buildStationCache(this.hass, this._config);
-        this._fetchPriceChanges();
+        // hass.entities is replaced on any registry change in the install; only refetch when ours changed.
+        if (this._priceEntities().join() !== priceEntitiesBefore) this._fetchPriceChanges();
         return true;
       }
 
@@ -458,14 +460,17 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     this._priceChanges = { ...this._priceChanges, [entityId]: current > previous ? 'up' : 'down' };
   }
 
+  private _priceEntities(): string[] {
+    return Object.values(this._stationCache || {})
+      .flatMap((s) => [s.e5, s.e10, s.diesel])
+      .filter((id): id is string => !!id);
+  }
+
   private async _fetchPriceChanges(): Promise<void> {
     if (!this._config || !this._config.show_price_changes) return;
 
     if (!this._stationCache) this._buildStationCache(this.hass, this._config);
-    const stations = this._stationCache || {};
-    const priceEntities = Object.values(stations)
-      .flatMap((s) => [s.e5, s.e10, s.diesel])
-      .filter((id): id is string => !!id);
+    const priceEntities = this._priceEntities();
 
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago

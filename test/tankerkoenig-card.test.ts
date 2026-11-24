@@ -895,7 +895,9 @@ describe('TankerkoenigCard', () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.899', diesel: '1.699' });
       const lateState = station.states['sensor.aral_diesel'];
       delete station.states['sensor.aral_diesel'];
-      await setupCard({ fuel_types: ['e5', 'diesel'] }, station);
+      (hass.callWS as Mock).mockResolvedValue({});
+      await setupCard({ fuel_types: ['e5', 'diesel'], show_price_changes: true }, station);
+      (hass.callWS as Mock).mockClear();
 
       expect(element.shadowRoot?.querySelectorAll('.price-container').length).toBe(1);
 
@@ -905,6 +907,21 @@ describe('TankerkoenigCard', () => {
       const containers = element.shadowRoot?.querySelectorAll('.price-container');
       expect(containers?.length).toBe(2);
       expect(element.shadowRoot?.querySelector('.price-container.diesel')).not.toBeNull();
+      // A new price sensor of this card still needs its history.
+      expect(hass.callWS as Mock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not refetch the history when an unrelated registry entry changes', async () => {
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
+      (hass.callWS as Mock).mockResolvedValue({});
+      await setupCard({ show_price_changes: true }, station);
+      (hass.callWS as Mock).mockClear();
+
+      // Home Assistant replaces hass.entities on any registry change in the whole install.
+      element.hass = { ...hass, entities: { ...hass.entities, 'light.unrelated': { entity_id: 'light.unrelated' } } };
+      await element.updateComplete;
+
+      expect(hass.callWS as Mock).not.toHaveBeenCalled();
     });
 
     it('should derive a price direction from the observed change without asking for history', async () => {
