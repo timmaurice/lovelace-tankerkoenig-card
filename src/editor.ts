@@ -84,19 +84,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
   @state() private _dragOverIndex: number | null = null;
 
   @state() private _stationsData: { stations: string[] } = { stations: [] };
-  @state() private _addressData: {
-    show_street: boolean;
-    show_postcode: boolean;
-    show_city: boolean;
-    clickable_addresses: boolean;
-    map_provider: string;
-  } = {
-    show_street: true,
-    show_postcode: true,
-    show_city: true,
-    clickable_addresses: false,
-    map_provider: 'google',
-  };
 
   public setConfig(config: TankerkoenigCardConfig): void {
     // The deprecated `show_address` is folded into the three explicit keys here, exactly as
@@ -113,17 +100,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     if (JSON.stringify(this._stationsData.stations) !== JSON.stringify(mappedStations)) {
       this._stationsData = { stations: mappedStations };
     }
-
-    const addressData = {
-      show_street: migrated.show_street ?? true,
-      show_postcode: migrated.show_postcode ?? true,
-      show_city: migrated.show_city ?? true,
-      clickable_addresses: migrated.clickable_addresses ?? false,
-      map_provider: migrated.map_provider ?? 'google',
-    };
-    if (JSON.stringify(this._addressData) !== JSON.stringify(addressData)) {
-      this._addressData = addressData;
-    }
   }
 
   protected shouldUpdate(changedProps: import('lit').PropertyValues): boolean {
@@ -136,7 +112,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
       changedProps.has('_activeColorPicker') ||
       changedProps.has('_isCustomizeDialogOpen') ||
       changedProps.has('_stationsData') ||
-      changedProps.has('_addressData') ||
       changedProps.has('_customizeInputValue') ||
       changedProps.has('_customizeNameInputValue') ||
       changedProps.has('_draggedIndex') ||
@@ -423,7 +398,7 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                     { name: 'show_postcode', selector: { boolean: {} } },
                     { name: 'show_city', selector: { boolean: {} } },
                     { name: 'clickable_addresses', selector: { boolean: {} } },
-                    ...(this._addressData.clickable_addresses
+                    ...(this._config.clickable_addresses
                       ? [
                           {
                             name: 'map_provider',
@@ -457,18 +432,14 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
                       : []),
                   ]}
                   .hass=${this.hass}
-                  .data=${this._addressData}
+                  .data=${{ ...CONFIG_DEFAULTS, ...this._config }}
                   .computeLabel=${(s: { name: string }) =>
                     localize(this.hass, `component.tankerkoenig-card.editor.${s.name}`)}
                   @value-changed=${(ev: { detail: { value: Partial<TankerkoenigCardConfig> } }) => {
-                    const newValue = { ...ev.detail.value };
-                    // If clickable addresses is turned off, we don't necessarily need to clear map_provider,
-                    // but we ensure it reacts appropriately.
-                    if (newValue.clickable_addresses === false && this._addressData.clickable_addresses) {
-                      newValue.map_provider = 'google';
-                    }
-                    this._addressData = { ...this._addressData, ...newValue } as typeof this._addressData;
-                    this._valueChanged({ detail: { value: newValue } });
+                    const value = { ...ev.detail.value };
+                    // Switching clickable addresses off resets the provider, which is then pruned as a default.
+                    if (value.clickable_addresses === false) value.map_provider = 'google';
+                    this._valueChanged({ detail: { value } });
                   }}
                 ></ha-form>
               </div>
