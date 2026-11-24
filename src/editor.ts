@@ -625,10 +625,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
     this._fireConfigChanged({ ...this._config, stations: newStations });
   }
 
-  private _handleDragEnter() {
-    // Left empty for strict compliance but drop handled by dragover
-  }
-
   private _renderStation(station: StationConfig, index: number): TemplateResult {
     const deviceId = typeof station === 'string' ? station : station.device;
     const customLogo = typeof station === 'object' ? station.logo : undefined;
@@ -656,7 +652,6 @@ export class TankerkoenigCardEditor extends LitElement implements LovelaceCardEd
         @dragend=${this._handleDragEnd}
         @dragover=${(e: DragEvent) => this._handleDragOver(e, index)}
         @dragleave=${(e: DragEvent) => this._handleDragLeave(e, index)}
-        @dragenter=${this._handleDragEnter}
         @drop=${(e: DragEvent) => this._handleDrop(e, index)}
       >
         <div class="drag-handle"><ha-icon icon="mdi:drag"></ha-icon></div>
