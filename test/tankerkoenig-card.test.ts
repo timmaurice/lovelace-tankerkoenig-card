@@ -1768,6 +1768,16 @@ describe('utils', () => {
       expect(utils.parseOpeningHours('Sa und So 08:00-20:00')[0].days).toEqual([6, 0]);
     });
 
+    it('should read "Sonn- und Feiertags" and "Wochentags"', () => {
+      expect(utils.parseOpeningHours('Sonn- und Feiertags 06:00-22:00')[0].days).toEqual([0]);
+      expect(utils.parseOpeningHours('Wochentags 06:00-22:00')[0].days).toEqual([1, 2, 3, 4, 5]);
+      const rules = utils.parseOpeningHours('Mo-Fr 08:00-18:00; Sonn- und Feiertags 06:00-22:00');
+      // Monday 05:00: the weekday hours apply, not the Sunday ones.
+      expect(utils.getOpeningStatus(rules, false, new Date('2026-11-23T05:00:00'))).toMatchObject({
+        timeMinutes: 8 * 60,
+      });
+    });
+
     it('should drop a rule it only half understands instead of guessing', () => {
       // Reading only 'täglich' and 'So' out of this turned it into Sunday only - the opposite.
       expect(utils.parseOpeningHours('täglich außer So 06:00-22:00')[0].days).toEqual([]);

@@ -421,17 +421,19 @@ const DAY_MAP: Record<string, number> = {
   so: 0,
   sun: 0,
   sonntag: 0,
+  sonn: 0,
 };
 
 // Holiday tokens are recognised, but deliberately map to no weekday at all. They used to map
 // to Sunday, which made a "Feiertag 08:00-20:00" line dictate the card's Sunday hours - a
 // station closed on Sundays was then reported as opening at 08:00 every Sunday.
-const HOLIDAY_TOKENS = new Set(['feiertag', 'feiertage', 'fei', 'holiday', 'holidays']);
+const HOLIDAY_TOKENS = new Set(['feiertag', 'feiertage', 'feiertags', 'fei', 'holiday', 'holidays']);
 
 // Words that stand for several days at once. 'werktags' is Monday to Saturday in German.
 const DAY_GROUPS: Record<string, number[]> = {
   täglich: [0, 1, 2, 3, 4, 5, 6],
   werktags: [1, 2, 3, 4, 5, 6],
+  wochentags: [1, 2, 3, 4, 5],
 };
 
 export function parseOpeningHours(str: string): OpeningRule[] {
@@ -496,6 +498,8 @@ function parseDays(dayStr: string): number[] {
   const days: number[] = [];
   const parts = dayStr
     .toLowerCase()
+    // "Sonn- und Feiertags": a hyphen before "und" elides a word, it is not a day range.
+    .replace(/-\s+(?=und\b)/g, ' ')
     .replace(/\s*-\s*/g, '-')
     .split(/[\s,]+/);
   // Tracked separately from `days`: a rule that names only holidays applies to no weekday,
