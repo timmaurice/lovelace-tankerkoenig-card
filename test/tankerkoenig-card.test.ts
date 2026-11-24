@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import '../src/tankerkoenig-card';
 import * as utils from '../src/utils';
+import { localize } from '../src/localize';
 import { TankerkoenigCard as TankerkoenigCardClass, type TankerkoenigCard } from '../src/tankerkoenig-card';
 import { HassEntity, HomeAssistant, TankerkoenigCardConfig } from '../src/types';
 
@@ -1276,6 +1277,13 @@ describe('TankerkoenigCard', () => {
       await element.updateComplete;
       expect(element.shadowRoot?.querySelector('.opening-hours-callout')).toBeNull();
     });
+  });
+});
+
+describe('localize', () => {
+  it('should fall back to the base language for a regional variant', () => {
+    const hass = { language: 'de-CH' } as HomeAssistant;
+    expect(localize(hass, 'component.tankerkoenig-card.card.day_0')).toBe('Sonntag');
   });
 });
 

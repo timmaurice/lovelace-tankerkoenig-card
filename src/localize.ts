@@ -32,7 +32,8 @@ export function localize(hass: HomeAssistant, key: string, placeholders: Record<
   const translationKey = key.replace('component.tankerkoenig-card.', '');
   const keyParts = translationKey.split('.');
 
-  const translation = _getTranslation(lang, keyParts) ?? _getTranslation('en', keyParts);
+  const translation =
+    _getTranslation(lang, keyParts) ?? _getTranslation(lang.split('-')[0], keyParts) ?? _getTranslation('en', keyParts);
 
   if (typeof translation === 'string') {
     let finalString = translation;
