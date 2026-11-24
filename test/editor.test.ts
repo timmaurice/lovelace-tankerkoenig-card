@@ -187,12 +187,15 @@ describe('TankerkoenigCardEditor', () => {
     });
 
     describe('the deprecated show_address', () => {
-      it('should show the switches in the position the card is actually rendering', () => {
+      it('should show the switches in the position the card is actually rendering', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         element.setConfig({ ...config, show_address: false });
+        await element.updateComplete;
 
+        const addressForm = element.shadowRoot?.querySelector('ha-expansion-panel .expansion-content ha-form') as
+          (HTMLElement & { data?: Record<string, unknown> }) | null;
         // Not "all three ON" while the card hides the address.
-        expect(element['_addressData']).toMatchObject({
+        expect(addressForm?.data).toMatchObject({
           show_street: false,
           show_postcode: false,
           show_city: false,
