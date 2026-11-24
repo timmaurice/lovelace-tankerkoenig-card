@@ -577,6 +577,14 @@ export function getOpeningStatus(rules: OpeningRule[], isOpen: boolean, now: Dat
     }
 
     if (activeRange) {
+      // A day open until midnight that runs straight into a next day opening at midnight
+      // (Mo-Sa 00:00-23:59:59) does not close at all, so there is no closing time to show.
+      const tomorrow = (today + 1) % 7;
+      const runsIntoTomorrow =
+        activeRange.endMin >= LAST_MINUTE_OF_DAY &&
+        rules.some((rule) => rule.days.includes(tomorrow) && rule.ranges.some((range) => range.startMin === 0));
+      if (runsIntoTomorrow) return { status: 'open' };
+
       const minutesLeft =
         activeRange.startMin > activeRange.endMin
           ? currentMin >= activeRange.startMin
