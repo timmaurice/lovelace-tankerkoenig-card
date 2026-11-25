@@ -39,7 +39,6 @@
     "sort_by_options": {
       "none": "None"
     },
-    "add_station": "Add Station",
     "customize": "Customize",
     "remove": "Remove",
     "station_name": "Station Name (Optional)",
@@ -87,7 +86,6 @@
     "weekdays": "Weekdays",
     "entity_not_found": "Entity not found: {entity}",
     "entity_unavailable": "Entity unavailable: {entity}",
-    "entity_wrong_domain": "Entity is of the wrong type: {entity}",
     "entity_not_numeric": "Entity does not report a number: {entity}",
     "status_unknown": "Status unknown"
   }

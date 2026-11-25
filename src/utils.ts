@@ -196,7 +196,7 @@ export function formatDate(date: string | Date, hass: HomeAssistant): string {
  * missing status entity used to be painted as "closed", and a non-numeric price used to
  * take the render down with it.
  */
-export type EntityProblem = 'not_found' | 'unavailable' | 'wrong_domain' | 'not_numeric';
+export type EntityProblem = 'not_found' | 'unavailable' | 'not_numeric';
 
 export interface ResolvedEntity {
   entityId: string;
@@ -209,8 +209,6 @@ export interface ResolvedEntity {
 }
 
 export interface ResolveOptions {
-  /** Accepted entity domains, e.g. `['binary_sensor']`. Any domain when omitted. */
-  domains?: string[];
   /** Require the state to parse as a finite number. */
   numeric?: boolean;
 }
@@ -219,7 +217,7 @@ export interface ResolveOptions {
  * Looks an entity up and reports, in one typed shape, whether it can be used.
  * @param hass The Home Assistant object.
  * @param entityId The entity to resolve.
- * @param options Domain and numeric requirements.
+ * @param options Whether the state has to be a number.
  * @returns The resolved entity, carrying a `problem` when it is unusable.
  */
 export function resolveEntity(
@@ -231,10 +229,6 @@ export function resolveEntity(
   const stateObj = id ? hass?.states?.[id] : undefined;
 
   if (!stateObj) return { entityId: id, problem: 'not_found' };
-
-  if (options.domains && !options.domains.includes(id.split('.')[0])) {
-    return { entityId: id, stateObj, problem: 'wrong_domain' };
-  }
 
   // 'unknown' counts as unavailable here: both mean the card has no value to show, and
   // treating either as a normal state is exactly how "unknown" became "closed".

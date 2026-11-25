@@ -1693,12 +1693,6 @@ describe('utils', () => {
       expect(utils.resolveEntity(hass, 'sensor.b').problem).toBe('unavailable');
     });
 
-    it('should report wrong_domain when the caller asked for another domain', () => {
-      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'on') });
-      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['binary_sensor'] }).problem).toBe('wrong_domain');
-      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['sensor'] }).problem).toBeUndefined();
-    });
-
     it('should report not_numeric only when a number was asked for', () => {
       const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'closed') });
       expect(utils.resolveEntity(hass, 'sensor.a').problem).toBeUndefined();
