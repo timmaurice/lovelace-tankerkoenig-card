@@ -39,7 +39,6 @@
     "sort_by_options": {
       "none": "Keine"
     },
-    "add_station": "Tankstelle hinzufügen",
     "customize": "Anpassen",
     "remove": "Entfernen",
     "station_name": "Stationsname (Optional)",
@@ -87,7 +86,6 @@
     "weekdays": "Werktags",
     "entity_not_found": "Entität nicht gefunden: {entity}",
     "entity_unavailable": "Entität nicht verfügbar: {entity}",
-    "entity_wrong_domain": "Entität hat den falschen Typ: {entity}",
     "entity_not_numeric": "Entität liefert keinen Zahlenwert: {entity}",
     "status_unknown": "Status unbekannt"
   }

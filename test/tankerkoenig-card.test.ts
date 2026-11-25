@@ -667,6 +667,28 @@ describe('TankerkoenigCard', () => {
       expect(indicator?.classList.contains('price-up')).toBe(true);
     });
 
+    it('should load the price history when the hass only arrives after the config', async () => {
+      // The first update then ran without a hass, so the history was never asked for.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.829' });
+      element.setConfig({ ...config, stations: [station.device_id], show_price_changes: true });
+      await element.updateComplete;
+
+      (hass.callWS as Mock).mockResolvedValue({
+        'sensor.aral_e5': [
+          { s: '1.809', lu: Date.now() - 1000 },
+          { s: '1.829', lu: Date.now() },
+        ],
+      });
+      Object.assign(hass, { entities: station.entities, states: station.states, devices: station.devices });
+      element.hass = hass;
+      await element.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await element.updateComplete;
+
+      const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
+      expect(indicator?.classList.contains('price-up')).toBe(true);
+    });
+
     it('should show price down indicator when price has fallen', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
       await setupCard({ show_price_changes: true }, station);
@@ -1671,12 +1693,6 @@ describe('utils', () => {
       expect(utils.resolveEntity(hass, 'sensor.b').problem).toBe('unavailable');
     });
 
-    it('should report wrong_domain when the caller asked for another domain', () => {
-      const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'on') });
-      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['binary_sensor'] }).problem).toBe('wrong_domain');
-      expect(utils.resolveEntity(hass, 'sensor.a', { domains: ['sensor'] }).problem).toBeUndefined();
-    });
-
     it('should report not_numeric only when a number was asked for', () => {
       const hass = hassWith({ 'sensor.a': stateOf('sensor.a', 'closed') });
       expect(utils.resolveEntity(hass, 'sensor.a').problem).toBeUndefined();
@@ -2032,6 +2048,34 @@ describe('utils', () => {
       expect(utils.getOpeningStatus(rules, true, new Date('2026-11-23T10:00:00'))).toEqual({ status: 'open' });
       // Saturday night does close: Sunday only opens at 06:00.
       expect(utils.getOpeningStatus(rules, true, new Date('2026-11-28T23:30:00')).status).toBe('closing_soon');
+    });
+
+    it('should handle opening times that run past midnight', () => {
+      // 2026-11-24 is a Tuesday.
+      const night = utils.parseRawOpeningTimes([{ days: 'Mo-Fr', start_time: '22:00:00', end_time: '06:00:00' }]);
+      expect(utils.getOpeningStatus(night, true, new Date('2026-11-24T02:00:00'))).toEqual({
+        status: 'open',
+        timeMinutes: 6 * 60,
+      });
+      expect(utils.getOpeningStatus(night, true, new Date('2026-11-24T05:30:00'))).toEqual({
+        status: 'closing_soon',
+        timeMinutes: 6 * 60,
+        minutesLeft: 30,
+      });
+      expect(utils.getOpeningStatus(night, false, new Date('2026-11-24T21:00:00'))).toEqual({
+        status: 'opening_soon',
+        timeMinutes: 22 * 60,
+        dayLabel: 'today',
+      });
+
+      const untilMidnight = utils.parseRawOpeningTimes([
+        { days: 'Mo-So', start_time: '06:00:00', end_time: '00:00:00' },
+      ]);
+      expect(utils.getOpeningStatus(untilMidnight, true, new Date('2026-11-24T23:30:00'))).toEqual({
+        status: 'closing_soon',
+        timeMinutes: 0,
+        minutesLeft: 30,
+      });
     });
 
     it('should return open normally when not close to closing time', () => {

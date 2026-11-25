@@ -39,7 +39,6 @@
     "sort_by_options": {
       "none": "Без сортування"
     },
-    "add_station": "Додати станцію",
     "customize": "Налаштувати",
     "remove": "Видалити",
     "station_name": "Назва станції (необовʼязково)",
@@ -87,7 +86,6 @@
     "weekdays": "Будні",
     "entity_not_found": "Сутність не знайдено: {entity}",
     "entity_unavailable": "Сутність недоступна: {entity}",
-    "entity_wrong_domain": "Сутність неправильного типу: {entity}",
     "entity_not_numeric": "Сутність не повертає число: {entity}",
     "status_unknown": "Статус невідомий"
   }
