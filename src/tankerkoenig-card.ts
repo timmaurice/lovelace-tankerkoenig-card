@@ -464,6 +464,11 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
 
   protected updated(changedProperties: Map<string | number | symbol, unknown>): void {
     super.updated(changedProperties);
+    // Not firstUpdated: a card attached before it has a hass renders its first update without one.
+    if (changedProperties.has('hass') && !changedProperties.get('hass')) {
+      this._fetchPriceChanges();
+      this._refreshOpeningTimes();
+    }
     if (changedProperties.has('_expandedStations')) {
       if (this._expandedStations.size > 0) {
         document.addEventListener('click', this._closeAllTooltips);
@@ -635,7 +640,7 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
     const newPriceChanges: Record<string, 'up' | 'down'> = {};
     for (const entityId of priceEntities) {
       // Filter out null, 'unknown', or 'unavailable' states from history.
-      const entityHistory = history[entityId];
+      const entityHistory = history?.[entityId];
       const validHistory = Array.isArray(entityHistory)
         ? entityHistory.filter(
             (entry) => entry && entry.s !== null && entry.s !== 'unknown' && !isNaN(parseFloat(entry.s)),
@@ -1050,11 +1055,6 @@ export class TankerkoenigCard extends LitElement implements LovelaceCard {
         </div>
       </ha-card>
     `;
-  }
-
-  protected firstUpdated(): void {
-    this._fetchPriceChanges();
-    this._refreshOpeningTimes();
   }
 
   static styles = css`

@@ -667,6 +667,28 @@ describe('TankerkoenigCard', () => {
       expect(indicator?.classList.contains('price-up')).toBe(true);
     });
 
+    it('should load the price history when the hass only arrives after the config', async () => {
+      // The first update then ran without a hass, so the history was never asked for.
+      const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.829' });
+      element.setConfig({ ...config, stations: [station.device_id], show_price_changes: true });
+      await element.updateComplete;
+
+      (hass.callWS as Mock).mockResolvedValue({
+        'sensor.aral_e5': [
+          { s: '1.809', lu: Date.now() - 1000 },
+          { s: '1.829', lu: Date.now() },
+        ],
+      });
+      Object.assign(hass, { entities: station.entities, states: station.states, devices: station.devices });
+      element.hass = hass;
+      await element.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await element.updateComplete;
+
+      const indicator = element.shadowRoot?.querySelector('.price-change-indicator');
+      expect(indicator?.classList.contains('price-up')).toBe(true);
+    });
+
     it('should show price down indicator when price has fallen', async () => {
       const station = createMockStation('aral', 'ARAL', 'ARAL', { e5: '1.809' });
       await setupCard({ show_price_changes: true }, station);
