@@ -2,7 +2,6 @@
 /node_modules
 
 # Build output — built fresh by the release workflow and shipped as a release asset
-# (dist/stylesheet.css is hand-written and linked from the README, so it stays tracked)
 dist/tankerkoenig-card.js
 dist/tankerkoenig-card.js.map
 
