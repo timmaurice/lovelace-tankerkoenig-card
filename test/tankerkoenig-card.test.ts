@@ -2056,6 +2056,34 @@ describe('utils', () => {
       expect(utils.getOpeningStatus(rules, true, new Date('2026-11-28T23:30:00')).status).toBe('closing_soon');
     });
 
+    it('should handle opening times that run past midnight', () => {
+      // 2026-11-24 is a Tuesday.
+      const night = utils.parseRawOpeningTimes([{ days: 'Mo-Fr', start_time: '22:00:00', end_time: '06:00:00' }]);
+      expect(utils.getOpeningStatus(night, true, new Date('2026-11-24T02:00:00'))).toEqual({
+        status: 'open',
+        timeMinutes: 6 * 60,
+      });
+      expect(utils.getOpeningStatus(night, true, new Date('2026-11-24T05:30:00'))).toEqual({
+        status: 'closing_soon',
+        timeMinutes: 6 * 60,
+        minutesLeft: 30,
+      });
+      expect(utils.getOpeningStatus(night, false, new Date('2026-11-24T21:00:00'))).toEqual({
+        status: 'opening_soon',
+        timeMinutes: 22 * 60,
+        dayLabel: 'today',
+      });
+
+      const untilMidnight = utils.parseRawOpeningTimes([
+        { days: 'Mo-So', start_time: '06:00:00', end_time: '00:00:00' },
+      ]);
+      expect(utils.getOpeningStatus(untilMidnight, true, new Date('2026-11-24T23:30:00'))).toEqual({
+        status: 'closing_soon',
+        timeMinutes: 0,
+        minutesLeft: 30,
+      });
+    });
+
     it('should return open normally when not close to closing time', () => {
       const rules = utils.parseOpeningHours('06:00-22:00');
       const now = new Date();
