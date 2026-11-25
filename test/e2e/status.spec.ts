@@ -5,7 +5,7 @@
  * for the price, nothing at all, because the render threw.
  */
 import { test, expect } from './fixtures/hass';
-import { setState, useDashboard } from './helpers/homeassistant';
+import { setState, stubOpeningTimes, useDashboard } from './helpers/homeassistant';
 import { findStation, restoreStations, seedStation, type StationEntities } from './helpers/stations';
 
 const STATION = {
@@ -60,6 +60,11 @@ test.describe('A station whose state the card cannot read', () => {
   });
 
   test('says the status is unknown rather than claiming the station is closed', async ({ page }) => {
+    // Ordinary hours from the action; its real answer here is "open around the clock",
+    // which would rightly render the 24/7 badge instead.
+    await stubOpeningTimes(page, {
+      [station.status]: [{ days: 'Mo-So', start_time: '06:00:00', end_time: '22:00:00' }],
+    });
     await page.goto(`/${urlPath}/0`);
     const card = page.locator('tankerkoenig-card');
     await expect(card.locator('ha-card')).toBeVisible({ timeout: 60_000 });
